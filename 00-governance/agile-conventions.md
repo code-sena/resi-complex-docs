@@ -9,25 +9,25 @@
 
 | Field | Value |
 |-------|-------|
-| Duration | [1 week / 2 weeks / 3 weeks] |
-| Sprint start | [Monday / Tuesday / Wednesday] |
-| Sprint end | [Friday of week N] |
-| Current sprint | Sprint [N] — [start date] to [end date] |
-| Estimated capacity | [N story points per sprint] |
+| Duration | [ 3 weeks] |
+| Sprint start | [Monday] |
+| Sprint end | [Friday of week 3] |
+| Current sprint | Sprint [N] — [-] to [-] |
+| Estimated capacity | [-] |
 
 ---
 
 ## Ceremonies
 
 ### Sprint Planning
-- **When:** First day of the sprint — [time]
+- **When:** First day of the sprint — [6:30 PM]
 - **Duration:** Maximum [1h per week of sprint]
 - **Who:** Entire team
 - **Goal:** Select and commit to sprint user stories, break down into technical tasks
-- **Output artifact:** Sprint Backlog updated in [tool: Jira / Linear / GitHub Issues]
+- **Output artifact:** Sprint Backlog updated in [Trello]
 
 ### Daily Stand-up
-- **When:** Every day — [time]
+- **When:** Every day — [6:30 PM]
 - **Duration:** Maximum 15 minutes
 - **Format:**
   1. What did I do yesterday?
@@ -36,7 +36,7 @@
 - **Rule:** Technical discussions happen after the daily, not during it
 
 ### Sprint Review
-- **When:** Last day of the sprint — [time]
+- **When:** Last day of the sprint — [6:30 PM]
 - **Duration:** Maximum [30 min]
 - **Who:** Team + Product Owner (+ stakeholders if applicable)
 - **Goal:** Show what was built and collect feedback
@@ -67,8 +67,8 @@
 | 8 | Very large — should be split |
 | 13 | Epic — MUST be split before the sprint |
 
-**Technique:** [Planning Poker / T-shirt sizing]
-**Tool:** [tool name]
+**Technique:** [Planning Poker]
+**Tool:** [PLanning Poker Online]
 
 ### Estimation rule
 - If there is disagreement of 2+ levels (e.g., someone says 3 and another says 8), discuss before voting again.
@@ -78,8 +78,8 @@
 
 ## Backlog tool
 
-**Tool:** [Jira / Linear / GitHub Projects / Trello]
-**Board URL:** [URL]
+**Tool:** [Trello]
+**Board URL:** [https://trello.com/invite/b/6a8e0ad6b0939ff85eada4ba/ATTIb4882c47bf655b2975b49406a15ee98bED36C2F0/resi-complex]
 
 ### Board columns
 | Column | Meaning |
@@ -96,7 +96,7 @@
 
 | Sprint | Story points completed | Notes |
 |--------|----------------------|-------|
-| Sprint 1 | — | — |
+| Sprint 1 | Project documentation |The members already have delegated tasks.|
 | Sprint 2 | — | — |
 | Sprint 3 | — | — |
 | Average | — | — |
