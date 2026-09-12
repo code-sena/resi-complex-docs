@@ -27,7 +27,7 @@ because **they lack a centralized system that integrates these processes and dis
 | Maintenance staff | Sees assigned requests and updates their status | 1–5 per complex | Medium |
 | Security guard | Registers visitor/vehicle entry-exit and incoming correspondence | 1–4 per complex (per shift) | Medium |
 
-*Estimated sizes to be validated with real data once the role-based surveys are applied (`03-product/*-survey.md`).*
+*Estimated sizes to be validated with real data once the role-based surveys are applied.(03-product\chore-docs)*
 
 ### Jobs-to-be-done (JTBD)
 
