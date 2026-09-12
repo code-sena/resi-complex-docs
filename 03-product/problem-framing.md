@@ -117,7 +117,7 @@ because **they lack a centralized system that integrates these processes and dis
 - **AI over documents** — evaluated in the technology watch (only 1 of 4 competitors offers it); not adopted in this MVP.
 - **External WhatsApp channel** — notifications are in-app (RF07); WhatsApp is not integrated, to avoid depending on a third-party channel outside the team's control.
 - **Visitor QR/pre-authorization** — the data model is prepared for it, but it is not implemented in the MVP.
-
+ñ
 ---
 
 ## Correlations
