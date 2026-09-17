@@ -157,7 +157,6 @@ Owned by `billing-service` (MySQL); rate source is `units-service`'s unit type f
 |-----------------------|-----|
 | `04-requirements/user-stories.md` | The backlog above (RF01–RF19) is formalized into HUs with Given/When/Then criteria |
 | `02-domain/domain-map.md` | `problem-framing.md` and `vision.md` already informed the 9 Bounded Contexts (IAM, Units, People, Maintenance, Billing, Communications, Access Control, Financial Approval, Reports) |
-| `15-project-control/technical-backlog.md` | Scope decisions here (e.g., what's out of the MVP) become technical debt entries if revisited later |
 
 ---
 

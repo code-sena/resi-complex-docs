@@ -33,7 +33,7 @@ They should be few (3-5) and consistent over time.
 
 | Pillar | Description | Success metrics |
 |--------|-------------|----------------|
-| Residential/commercial differentiation | Every core process (fees, communications, access) natively distinguishes residential units from commercial establishments, which competitors don't cover natively (see market research, `03-product/market-research.md`) | % of fee/communication flows with residential vs. commercial logic implemented |
+| Residential/commercial differentiation | Every core process (fees, communications, access) natively distinguishes residential units from commercial establishments, which competitors don't cover natively (see market research, `03-produc/resi-complex-tech-watch.md`) | % of fee/communication flows with residential vs. commercial logic implemented |
 | Traceability | Every critical action (expense approval, maintenance request status, visitor/correspondence log) leaves an auditable record | % of FR01–FR19 with full history/audit trail; % of expense proposals with recorded approval history |
 | Security by design | RBAC by role, JWT with short expiration and refresh rotation, bcrypt-hashed passwords, parameterized queries — non-negotiable per team governance (`00-governance/`) | 0 critical security findings in code review/PR checks |
 | Usability & mobility | The system must be usable from a phone, since guards and maintenance staff work on the move (NFR03) | % of core flows validated as usable on mobile |
@@ -71,7 +71,7 @@ These principles guide design and prioritization decisions when there are trade-
 
 2. **Traceability first:** if an action affects money, access, or a Board decision, it must be logged and queryable later. When in doubt, log it.
 
-3. **Security is not optional:** RBAC, hashed passwords, parameterized queries, and generic client-facing errors apply to every service from day one, per `00-governance/security.md` — no service ships without them.
+3. **Security is not optional:** RBAC, hashed passwords, parameterized queries, and generic client-facing errors apply to every service from day one, per `security-rules.md y security-policy.md` — no service ships without them.
 
 4. **Mobile-usable, not mobile-only:** guards, maintenance staff, and residents often act from a phone; every core flow must work responsively (NFR03), without requiring a desktop-only experience.
 

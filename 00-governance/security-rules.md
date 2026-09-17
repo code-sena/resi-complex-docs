@@ -147,6 +147,4 @@ res.status(500).json({
 ## Correlations
 
 - Security policy (management, access, vault) → `00-governance/security-policy.md`
-- System threat model → `05-architecture/security-threat-model.md`
-- Authentication and JWT → `07-api/authentication.md`
 - Observability and security logs → `13-operations/observability.md`
