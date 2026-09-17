@@ -27,7 +27,7 @@ because **they lack a centralized system that integrates these processes and dis
 | Maintenance staff | Sees assigned requests and updates their status | 1–5 per complex | Medium |
 | Security guard | Registers visitor/vehicle entry-exit and incoming correspondence | 1–4 per complex (per shift) | Medium |
 
-*Estimated sizes to be validated with real data once the role-based surveys are applied.(03-product\chore-docs)*
+*Estimated sizes to be validated with real data once the role-based surveys are applied.(`03-product/*-survey.md`).*
 
 ### Jobs-to-be-done (JTBD)
 
@@ -83,10 +83,10 @@ because **they lack a centralized system that integrates these processes and dis
 
 | Metric | Current baseline | 6-month target | How to measure it |
 |--------|----------------|---------------|-------------------|
-| System response time | N/A (no system exists) | < 2 seconds in normal operations (RNF01) | Per-service performance monitoring |
-| % of maintenance requests with status updated in the system | 0% (manual/verbal process) | **TBD** — define with team/instructor | Requests module reports (RF19) |
-| % of fees generated automatically vs. manually | 0% | **TBD** | Fee/portfolio reports (RF08–RF10, RF19) |
-| Expense proposals with recorded approval history | 0% (no formal record, section 2) | **TBD** | Expense approval module (RF17–RF18) |
+| System response time | N/A (no system exists) | < 2 seconds in normal operations (NFR01) | Per-service performance monitoring |
+| % of maintenance requests with status updated in the system | 0% (manual/verbal process) | **TBD** — define with team/instructor | Requests module reports (FR19) |
+| % of fees generated automatically vs. manually | 0% | **TBD** | Fee/portfolio reports (FR08–FR10, FR19) |
+| Expense proposals with recorded approval history | 0% (no formal record, section 2) | **TBD** | Expense approval module (FR17–FR18) |
 
 **North Star Metric:** **TBD** — to be defined by the team as the single metric that best captures delivered value (candidate: % of the pilot complex's processes migrated from manual handling to the system).
 
@@ -109,13 +109,13 @@ because **they lack a centralized system that integrates these processes and dis
 > Explicitly define which related problems you are NOT solving in this version.
 > This prevents scope creep.
 
-- **Full IFRS/NIIF accounting** — the system records fees and expenses, but does not replace a formal accounting system: it wasn't required by the RF/RNF and would add regulatory complexity outside this project's formative scope.
+- **Full IFRS/NIIF accounting** — the system records fees and expenses, but does not replace a formal accounting system: it wasn't required by the FR/NFR and would add regulatory complexity outside this project's formative scope.
 - **Physical access-control hardware** (turnstiles, biometrics, etc.) — the system only digitally records what the guard reports; integrating physical hardware was explicitly excluded from the MVP.
 - **Online payments** — fees are generated and consulted, but not paid within the system in this MVP; it was deprioritized to keep the MVP scope achievable in the available time.
-- **Digital assemblies / voting** — out of the current formative scope; no RF covers it.
-- **Common-area reservations** — not covered by RF01–RF19.
+- **Digital assemblies / voting** — out of the current formative scope; no FR covers it.
+- **Common-area reservations** — not covered by FR01–FR19.
 - **AI over documents** — evaluated in the technology watch (only 1 of 4 competitors offers it); not adopted in this MVP.
-- **External WhatsApp channel** — notifications are in-app (RF07); WhatsApp is not integrated, to avoid depending on a third-party channel outside the team's control.
+- **External WhatsApp channel** — notifications are in-app (FR07); WhatsApp is not integrated, to avoid depending on a third-party channel outside the team's control.
 - **Visitor QR/pre-authorization** — the data model is prepared for it, but it is not implemented in the MVP.
 ñ
 ---

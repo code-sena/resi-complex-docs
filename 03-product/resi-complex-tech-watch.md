@@ -58,14 +58,14 @@ Ninguna de las 4 plataformas usa blockchain — **no se adopta**, no hay evidenc
 ### 3.2 Patrones de UX de la competencia
 TUCO 360 y Edifia muestran preautorización/QR de visitantes; TUCO 360 permite fotos en mantenimiento; varias ofrecen reservas de zonas comunes.
 - **Se adopta el principio, no la tecnología completa:** el modelo de datos de Visita queda preparado para evolucionar a QR, sin implementarlo ahora.
-- **Se evalúa incorporar ya** la evidencia fotográfica en mantenimiento (bajo costo, extiende RF06).
-- **No se adopta** el módulo de reservas: fuera de las entidades/RF ya definidos; línea futura.
+- **Se evalúa incorporar ya** la evidencia fotográfica en mantenimiento (bajo costo, extiende FR06).
+- **No se adopta** el módulo de reservas: fuera de las entidades/FR ya definidos; línea futura.
 
 ### 3.3 Automatización e inteligencia artificial
 Solo Edifia (1 de 4) tiene IA sobre documentos; varias automatizan cuotas/recordatorios; PH360 automatiza asambleas/votaciones.
 - **No se adopta IA:** evidencia insuficiente (1 de 4 competidores) para tratarla como requisito; queda como tendencia a vigilar.
-- **Se prioriza** automatización de recordatorios/estado de cuotas (RF08–RF10): funcionalidad recurrente en el mercado y viable con Spring Boot + tareas programadas.
-- **No se adopta** el módulo de asambleas/votaciones: fuera del alcance actual (sin entidades ni RF definidos para ello).
+- **Se prioriza** automatización de recordatorios/estado de cuotas (FR08–FR10): funcionalidad recurrente en el mercado y viable con Spring Boot + tareas programadas.
+- **No se adopta** el módulo de asambleas/votaciones: fuera del alcance actual (sin entidades ni FR definidos para ello).
 
 ### Síntesis de decisiones
 
@@ -77,7 +77,7 @@ Solo Edifia (1 de 4) tiene IA sobre documentos; varias automatizan cuotas/record
 | Evidencia fotográfica | TUCO 360 | Evaluar incorporar ya |
 | Reservas de zonas comunes | Varios | Línea futura |
 | IA sobre documentos | 1 de 4 (Edifia) | No se adopta; vigilar |
-| Recordatorios automáticos de cuota | Varios | Se prioriza (RF08–RF10) |
+| Recordatorios automáticos de cuota | Varios | Se prioriza (FR08–FR10) |
 | Asambleas y votaciones | PH360 | Fuera de alcance actual |
 
 ---
