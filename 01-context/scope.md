@@ -74,7 +74,7 @@ What the system **does NOT build** in this version and why:
 | 1 | A unit only needs two types: residential or commercial | Adding more unit types would require reworking the fee model and the announcement segmentation logic |
 | 2 | The system serves a single residential complex at a time (not a multi-complex SaaS) | Multi-tenancy would require significant changes to the data model and authorization design |
 | 3 | Initial data volume is small (single complex scale: units, residents, and daily visits) | The database and query strategy might need to change for a multi-complex or high-volume scenario |
-| 4 | Users have access to a smartphone or computer with a modern browser (per RNF03) | The UX/UI design and the frontend technology choice might need to change |
+| 4 | Users have access to a smartphone or computer with a modern browser (per NFR03) | The UX/UI design and the frontend technology choice might need to change |
 | 5 | The instructor confirms the proposed microservices catalog without major changes | The service boundaries in this document (and the "Responsible service" column above) would need to be revised |
 
 ---

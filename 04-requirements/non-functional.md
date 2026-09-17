@@ -29,9 +29,9 @@
 
 **Defined critical endpoints:**
 - `POST /auth/login` (iam-service) — gates access to every other endpoint; a slow login blocks all 5 roles
-- `POST /fees/generate` (billing-service) — monthly batch job that generates fees for every unit at once (RF08–RF09)
+- `POST /fees/generate` (billing-service) — monthly batch job that generates fees for every unit at once (FR08–RF09)
 - `POST /maintenance-requests` (maintenance-service) — created in real time by residents/commercial owners reporting an issue (RF05)
-- `POST /visits` (access-control-service) — logged in real time by the Security Guard at the front desk (RF12)
+- `POST /visits` (access-control-service) — logged in real time by the Security Guard at the front desk (FR12)
 
 **Load testing tools:**
 - k6, Apache JMeter, Locust, Gatling
