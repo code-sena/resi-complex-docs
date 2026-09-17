@@ -18,7 +18,7 @@
 
 | Term | Definition | Notes / Synonyms |
 |------|-----------|-----------------|
-| Person | Any individual registered in the system who lives in or occupies a unit: a Resident or a Commercial Owner/Tenant. Modeled as a single entity (`Persona`) with a `tipo_persona` field distinguishing the two. | Do NOT model "Resident" and "Owner/Tenant" as separate authentication roles — they are subtypes of Person. |
+| Person | Any individual registered in the system who lives in or occupies a unit: a Resident or a Commercial Owner/Tenant. Modeled as a single entity (`person`) with a `personType` field distinguishing the two. | Do NOT model "Resident" and "Owner/Tenant" as separate authentication roles — they are subtypes of Person. |
 | Unit | A physical space within the complex, classified as either residential or commercial. Owns exactly one differentiated fee rate based on its type. | Synonym to avoid: "apartment" (excludes commercial units). |
 | Commercial Establishment | The business operating inside a commercial Unit (name, business type, operating hours). Only exists when the associated Unit is classified as commercial. | Do not confuse with "Unit" — a commercial Unit *has* an Establishment, it is not the same record. |
 | Maintenance Request | A ticket created by a Person describing a repair or service need, with a type, description, and priority. Moves through a defined status lifecycle. | Synonyms to avoid: "ticket", "PQR" (used by competitor platforms, not our domain language). |
