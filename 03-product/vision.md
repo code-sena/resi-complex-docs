@@ -48,11 +48,11 @@ They should be few (3-5) and consistent over time.
 > Horizon 3 (6-12 months): low certainty, focus areas
 
 ```
-Q1 2024 ──── Q2 2024 ──── Q3 2024 ──── Q4 2024
-     │                │                │                │
-   [MVP core]   [Operations]      [Governance]      [Polish & docs]
-   Validate       Expand            Deepen            Consolidate
-   hypothesis     the flows         the value         for delivery
+H1 (Sprint 1–2) ── H2 (Sprint 3–4) ── H3 (Sprint 5+)
+     │                │                │                
+   [MVP core]   [Operations]      [Governance]      
+   Validate       Expand            Deepen            
+   hypothesis     the flows         the value        
 ```
 
 | Horizon | Period | Objective | Epics / Features | Uncertainty |
