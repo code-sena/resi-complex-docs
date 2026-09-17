@@ -17,7 +17,7 @@ Residential-complex (resi-complex) is a web-based information system that lets t
 | Role | Description | What they do in the system |
 |------|-------------|--------------------------|
 | Administrator | Staff member who runs the day-to-day administration of the complex | Manages units and people, generates fees, assigns maintenance requests, publishes announcements, creates extraordinary expense proposals |
-| Board of Directors | Elected body responsible for financial oversight of the complex | Approves or rejects expense proposals, reviews financial reports |
+| Board of Trustees | Elected body responsible for financial oversight of the complex | Approves or rejects expense proposals, reviews financial reports |
 | Person (Resident / Commercial Owner or Tenant) | Occupant of a residential unit, or owner/tenant of a commercial unit | Creates maintenance requests, checks their fee status, views announcements segmented to their unit type, checks pending correspondence |
 | Maintenance Staff | Staff member who resolves maintenance requests | Views assigned requests and updates their status (received → in progress → resolved) |
 | Security Guard | Staff member responsible for the entrance/lobby (portería) | Logs visitor and vehicle entry/exit (personal visitors or commercial clients), logs incoming correspondence |

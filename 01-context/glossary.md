@@ -29,8 +29,8 @@
 | Visitor Vehicle | A vehicle associated with a Visit, recorded with plate number and vehicle type. | |
 | Correspondence | A package or piece of mail received at the complex and logged against a specific Unit, pending pickup by its occupant. | Synonym to avoid: "mail" alone (ambiguous with email). |
 | Expense Proposal | A formal request created by the Administrator for an extraordinary expense or budget item, submitted for Board approval. | |
-| Approval | The Board of Directors' recorded decision (approved/rejected) on an Expense Proposal, kept as permanent historical record. | Do not overwrite — approvals are append-only for traceability. |
-| Board of Directors | The authenticated role responsible for approving or rejecting Expense Proposals and reviewing financial reports. | Synonym to avoid: "committee" (not used in this domain). |
+| Approval | The Board of Trustees' recorded decision (approved/rejected) on an Expense Proposal, kept as permanent historical record. | Do not overwrite — approvals are append-only for traceability. |
+| Board of Trustees | The authenticated role responsible for approving or rejecting Expense Proposals and reviewing financial reports. | Synonym to avoid: "committee" (not used in this domain). |
 | Ownership-level authorization | Access control that restricts a Person to data belonging to their own Unit(s), enforced beyond simple role-based checks. | Not a domain entity — an architectural concept specific to this project's authorization model. |
 
 ---
