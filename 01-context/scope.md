@@ -49,12 +49,12 @@ What the system **does NOT build** in this version and why:
 | # | What is out of scope | Reason | Future version? |
 |---|---------------------|--------|----------------|
 | 1 | Full NIIF accounting | Exceeds the formative/academic scope; the project only covers expense proposal + approval, not full accounting | N/A |
-| 2 | Physical access hardware control (electronic locks, RFID/turnstiles) | The access control module is a digital log only (RF12–RF14), not a physical automation mechanism | N/A |
+| 2 | Physical access hardware control (electronic locks, RFID/turnstiles) | The access control module is a digital log only (FR12–FR14), not a physical automation mechanism | N/A |
 | 3 | Online payments | Not evidenced as a requirement for this delivery; documented as a future integration | Yes — future line, no date set |
-| 4 | Assemblies / electronic voting | No entities or RF defined for this in the current scope; present in 1 of the analyzed competitors (PH360) | Yes — team decision pending (see technology watch, section 3.3) |
-| 5 | Common-area reservations | Not part of the defined entities/RF; appears in several competitor platforms | Yes — future line, no date set |
+| 4 | Assemblies / electronic voting | No entities or FR defined for this in the current scope; present in 1 of the analyzed competitors (PH360) | Yes — team decision pending (see technology watch, section 3.3) |
+| 5 | Common-area reservations | Not part of the defined entities/FR; appears in several competitor platforms | Yes — future line, no date set |
 | 6 | AI over documents | Only 1 of 4 competitors (Edifia) offers it; insufficient market evidence to adopt now | Yes — to monitor, no date set |
-| 7 | External channel (WhatsApp) | Not part of the defined RF; communication stays inside the system (in-app / Announcements module) | Pending — not evaluated |
+| 7 | External channel (WhatsApp) | Not part of the defined FR; communication stays inside the system (in-app / Announcements module) | Pending — not evaluated |
 | 8 | Visitor pre-authorization / QR | Data model is being prepared to support it later, but not implemented in this delivery | Yes — future line, no date set |
 
 ### What another system / team handles (and why not us)
