@@ -63,7 +63,7 @@ Administrator and Board of Trustees.
 Technology watch for resi-complex: validated competitors (ConjuntoApp, TUCO 360, Edifia,
 PH360), patent landscape (Decisión 486 CAN — protected by copyright, not patents), and
 evaluated trends (blockchain and full document-AI: not adopted; online payments and visitor
-QR: future candidates, out of MVP; fee-reminder automation: prioritized, RF08–RF10).
+QR: future candidates, out of MVP; fee-reminder automation: prioritized, FR08–FR10).
 
 ### `vision.md` ⭐ — ✅ Complete
 The product's north star in 1-2 sentences.
@@ -83,24 +83,24 @@ Delivery plan over time.
 **Fill in, following the horizons already sketched in `vision.md`:**
 ```markdown
 ## Phase 1 — MVP core (Sprint 1-2)
-- IAM: registration/login with the 5 roles (RF01)
-- Units & commercial establishments (RF02–RF04)
+- IAM: registration/login with the 5 roles (FR01)
+- Units & commercial establishments (FR02–FR04)
 - People management
 
 ## Phase 2 — Operations (Sprint 3-4)
-- Maintenance requests, from creation to status update (RF05–RF07)
-- Differentiated fees by unit type (RF08–RF10)
-- Access control & correspondence (RF12–RF16)
+- Maintenance requests, from creation to status update (FR05–FR07)
+- Differentiated fees by unit type (FR08–FR10)
+- Access control & correspondence (FR12–FR16)
 
 ## Phase 3 — Governance (Sprint 5+)
-- Segmented communications (RF11)
-- Extraordinary expense approval with history (RF17–RF18)
-- Reports (RF19)
+- Segmented communications (FR11)
+- Extraordinary expense approval with history (FR17–FR18)
+- Reports (FR19)
 ```
 
 ### `product-backlog.md` ⭐ — 🔴 Not created yet
 Prioritized list of everything that must be built.
-**Fill in:** using the `_template-backlog.md` template, one entry per RF01–RF19 (see
+**Fill in:** using the `_template-backlog.md` template, one entry per FR01–FR19 (see
 `01-context/scope.md`), ordered by the MVP horizons above — not by convenience of
 implementation.
 

@@ -34,7 +34,7 @@ They should be few (3-5) and consistent over time.
 | Pillar | Description | Success metrics |
 |--------|-------------|----------------|
 | Residential/commercial differentiation | Every core process (fees, communications, access) natively distinguishes residential units from commercial establishments, which competitors don't cover natively (see market research, `03-product/market-research.md`) | % of fee/communication flows with residential vs. commercial logic implemented |
-| Traceability | Every critical action (expense approval, maintenance request status, visitor/correspondence log) leaves an auditable record | % of RF01–RF19 with full history/audit trail; % of expense proposals with recorded approval history |
+| Traceability | Every critical action (expense approval, maintenance request status, visitor/correspondence log) leaves an auditable record | % of FR01–FR19 with full history/audit trail; % of expense proposals with recorded approval history |
 | Security by design | RBAC by role, JWT with short expiration and refresh rotation, bcrypt-hashed passwords, parameterized queries — non-negotiable per team governance (`00-governance/`) | 0 critical security findings in code review/PR checks |
 | Usability & mobility | The system must be usable from a phone, since guards and maintenance staff work on the move (RNF03) | % of core flows validated as usable on mobile |
 
@@ -57,9 +57,9 @@ Q1 2024 ──── Q2 2024 ──── Q3 2024 ──── Q4 2024
 
 | Horizon | Period | Objective | Epics / Features | Uncertainty |
 |---------|--------|----------|----------------|-------------|
-| H1 (Now) | Sprint 1–2 | Stand up identity, units, and people management | IAM (RF01), Units & commercial establishments (RF02–RF04), People | Low |
-| H2 (Next) | Sprint 3–4 | Enable day-to-day operations residents/staff interact with | Maintenance requests (RF05–RF07), Differentiated fees (RF08–RF10), Access control & correspondence (RF12–RF16) | Medium |
-| H3 (Later) | Sprint 5+ | Close the governance loop and give visibility | Communications (RF11), Extraordinary expense approval (RF17–RF18), Reports (RF19) | High |
+| H1 (Now) | Sprint 1–2 | Stand up identity, units, and people management | IAM (FR01), Units & commercial establishments (FR02–FR04), People | Low |
+| H2 (Next) | Sprint 3–4 | Enable day-to-day operations residents/staff interact with | Maintenance requests (FR05–FR07), Differentiated fees (FR08–FR10), Access control & correspondence (FR12–FR16) | Medium |
+| H3 (Later) | Sprint 5+ | Close the governance loop and give visibility | Communications (FR11), Extraordinary expense approval (FR17–FR18), Reports (FR19) | High |
 
 ---
 
@@ -81,11 +81,11 @@ These principles guide design and prioritization decisions when there are trade-
 
 > The product is "done" when it achieves these OKRs:
 
-**Objective:** Deliver a functional MVP that covers RF01–RF19, validated with a real or simulated pilot residential complex, with governance and documentation standards fully applied.
+**Objective:** Deliver a functional MVP that covers FR01–FR19, validated with a real or simulated pilot residential complex, with governance and documentation standards fully applied.
 
 | Key Result | Baseline | Target | Date |
 |------------|---------|--------|------|
-| KR1: % of RF01–RF19 implemented and passing acceptance criteria | 0% | 100% | **TBD** — end of academic term |
+| KR1: % of FR01–FR19 implemented and passing acceptance criteria | 0% | 100% | **TBD** — end of academic term |
 | KR2: Role-based surveys/interviews applied and analyzed (5 roles) | 0 / 5 applied | 5 / 5 applied and analyzed | **TBD** |
 | KR3: Microservices catalog confirmed with instructor | Proposed, not confirmed | Confirmed | **TBD** |
 | KR4: Response time in normal operations (RNF01) | N/A (no system yet) | < 2 seconds | **TBD** |
