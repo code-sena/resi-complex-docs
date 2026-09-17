@@ -24,7 +24,7 @@
 | Maintenance Request | A ticket created by a Person describing a repair or service need, with a type, description, and priority. Moves through a defined status lifecycle. | Synonyms to avoid: "ticket", "PQR" (used by competitor platforms, not our domain language). |
 | Administration Fee | The periodic (monthly) charge generated for a Unit, calculated using a rate that differs by Unit type (residential vs. commercial). | Do not use "quota" in English docs — always "fee" for consistency. |
 | Payment | A recorded transaction that settles (fully or partially) an Administration Fee. | |
-| Announcement | A message published by the Administrator, segmented to reach all Units, only residential Units, or only commercial Units. | Synonym to avoid: "notification" (reserved for system/status alerts, e.g. RF07). |
+| Announcement | A message published by the Administrator, segmented to reach all Units, only residential Units, or only commercial Units. | Synonym to avoid: "notification" (reserved for system/status alerts, e.g. FR07). |
 | Visit | A record of a person entering the complex, logged by the Security Guard, associated with a destination Unit and classified as either a personal visitor or a commercial client. | |
 | Visitor Vehicle | A vehicle associated with a Visit, recorded with plate number and vehicle type. | |
 | Correspondence | A package or piece of mail received at the complex and logged against a specific Unit, pending pickup by its occupant. | Synonym to avoid: "mail" alone (ambiguous with email). |

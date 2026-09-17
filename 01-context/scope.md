@@ -14,16 +14,16 @@ What the system **DOES build and maintain**:
 
 | # | Feature | Description | Responsible service |
 |---|---------|-------------|---------------------|
-| 1 | Authentication & role-based access | Login and session management for the 5 authentication roles (RF01) | iam-service |
-| 2 | Units & commercial establishments management | Register/edit/delete units, classify as residential or commercial, and register establishment data (name, type, hours) when commercial (RF02–RF04) | units-service |
-| 3 | People management | Manage Persons (Residents and Commercial Owners/Tenants) linked to their units (RF01) | people-service |
-| 4 | Maintenance requests | Create requests, assign them, track status through their lifecycle, notify status changes (RF05–RF07) | maintenance-service |
-| 5 | Differentiated administration fees | Monthly fee generation with rates that differ by unit type, and fee status lookup (RF08–RF10) | billing-service |
-| 6 | Segmented announcements | Publish announcements to all units, only residential, or only commercial (RF11) | communications-service |
-| 7 | Access control | Log visitor and vehicle entry/exit, distinguishing personal visitors from commercial clients (RF12–RF14) | access-control-service |
-| 8 | Correspondence | Log incoming packages/mail per unit and let residents check pending correspondence (RF15–RF16) | access-control-service *(tentative — not explicit in the initial service catalog; pending confirmation with the instructor)* |
-| 9 | Extraordinary expense approval | Administrator creates expense proposals; Board approves or rejects, with permanent history (RF17–RF18) | finance-approval-service |
-| 10 | Reports | Requests by status and pending fee portfolio (RF19) | reports-service |
+| 1 | Authentication & role-based access | Login and session management for the 5 authentication roles (FR01) | iam-service |
+| 2 | Units & commercial establishments management | Register/edit/delete units, classify as residential or commercial, and register establishment data (name, type, hours) when commercial (FR02–FR04) | units-service |
+| 3 | People management | Manage Persons (Residents and Commercial Owners/Tenants) linked to their units (FR01) | people-service |
+| 4 | Maintenance requests | Create requests, assign them, track status through their lifecycle, notify status changes (FR05–FR07) | maintenance-service |
+| 5 | Differentiated administration fees | Monthly fee generation with rates that differ by unit type, and fee status lookup (FR08–FR10) | billing-service |
+| 6 | Segmented announcements | Publish announcements to all units, only residential, or only commercial (FR11) | communications-service |
+| 7 | Access control | Log visitor and vehicle entry/exit, distinguishing personal visitors from commercial clients (FR12–FR14) | access-control-service |
+| 8 | Correspondence | Log incoming packages/mail per unit and let residents check pending correspondence (FR15–FR16) | access-control-service *(tentative — not explicit in the initial service catalog; pending confirmation with the instructor)* |
+| 9 | Extraordinary expense approval | Administrator creates expense proposals; Board approves or rejects, with permanent history (FR17–FR18) | finance-approval-service |
+| 10 | Reports | Requests by status and pending fee portfolio (FR19) | reports-service |
 
 ### Included integrations
 
