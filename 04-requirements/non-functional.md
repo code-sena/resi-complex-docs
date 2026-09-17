@@ -69,7 +69,7 @@ feature deploys are frozen until the next month and stability is prioritized.
 | Horizontal scaling limit | Up to 3 instances per service (formative-project scale: a single residential complex, see `01-context/scope.md` assumption #3) |
 
 **Strategy:** Stateless horizontal scaling — each instance does not store state in memory.
-State goes in Redis (sessions, cache) or PostgreSQL (persistent data).
+State goes in Redis (sessions, cache) or MySQL (persistent data).
 
 ---
 

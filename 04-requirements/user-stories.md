@@ -29,6 +29,7 @@
 | EP-007 | Access Control | Log visitor/vehicle entry-exit and incoming correspondence at the front desk |
 | EP-008 | Financial Approval | Manage extraordinary expense proposals and the Board of Trustees' approval history |
 | EP-009 | Reports | Consolidate read-only views (requests by status, pending fee arrears) from other services' events |
+
 ---
 
 ## User Stories
@@ -71,6 +72,7 @@ Scenario 2: Invalid credentials
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | — |
+| Requisito (FR) | FR01 |
 | Affected service(s) | iam-service |
 
 ---
@@ -112,6 +114,7 @@ Scenario 2: Register a person against a non-existent unit
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-IAM-001, HU-UNIT-001 |
+| Requisito (FR) | FR01 |
 | Affected service(s) | people-service |
 
 ---
@@ -153,6 +156,7 @@ Scenario 2: Register a commercial unit without establishment data
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-IAM-001 |
+| Requisito (FR) | FR02 |
 | Affected service(s) | units-service |
 
 ---
@@ -194,6 +198,7 @@ Scenario 2: Delete a unit with active fees
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-UNIT-001 |
+| Requisito (FR) | FR03 |
 | Affected service(s) | units-service |
 
 ---
@@ -230,6 +235,7 @@ Scenario 1: Register establishment for a commercial unit
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-UNIT-001 |
+| Requisito (FR) | FR04 |
 | Affected service(s) | units-service |
 
 ---
@@ -271,6 +277,7 @@ Scenario 2: Missing priority
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-PPL-001, HU-UNIT-001 |
+| Requisito (FR) | FR05 |
 | Affected service(s) | maintenance-service |
 
 ---
@@ -312,6 +319,7 @@ Scenario 2: Invalid status transition
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-MAINT-001 |
+| Requisito (FR) | FR06 |
 | Affected service(s) | maintenance-service |
 
 ---
@@ -348,6 +356,7 @@ Scenario 1: Status change notification
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-MAINT-002 |
+| Requisito (FR) | FR07 |
 | Affected service(s) | communications-service |
 
 ---
@@ -389,6 +398,7 @@ Scenario 2: Unit type changes after fee generation
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-UNIT-001 |
+| Requisito (FR) | FR08, FR09 |
 | Affected service(s) | billing-service |
 
 ---
@@ -425,6 +435,7 @@ Scenario 1: View own fees
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-BILL-001 |
+| Requisito (FR) | FR10 |
 | Affected service(s) | billing-service |
 
 ---
@@ -461,6 +472,7 @@ Scenario 1: Publish to commercial units only
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-UNIT-001 |
+| Requisito (FR) | FR11 |
 | Affected service(s) | communications-service |
 
 ---
@@ -502,6 +514,7 @@ Scenario 2: Invalid destination unit
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-UNIT-001 |
+| Requisito (FR) | FR12 |
 | Affected service(s) | access-control-service |
 
 ---
@@ -538,6 +551,7 @@ Scenario 1: Vehicle with complete data
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-ACC-001 |
+| Requisito (FR) | FR13 |
 | Affected service(s) | access-control-service |
 
 ---
@@ -574,6 +588,7 @@ Scenario 1: Log exit for an open visit
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-ACC-001 |
+| Requisito (FR) | FR14 |
 | Affected service(s) | access-control-service |
 
 ---
@@ -610,6 +625,7 @@ Scenario 1: Log correspondence
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-UNIT-001 |
+| Requisito (FR) | FR15 |
 | Affected service(s) | access-control-service |
 
 ---
@@ -646,6 +662,7 @@ Scenario 1: View pending correspondence
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-ACC-004 |
+| Requisito (FR) | FR16 |
 | Affected service(s) | access-control-service |
 
 ---
@@ -687,6 +704,7 @@ Scenario 2: Amount is zero or negative
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-BILL-001 |
+| Requisito (FR) | FR17 |
 | Affected service(s) | finance-approval-service |
 
 ---
@@ -728,6 +746,7 @@ Scenario 2: Decide on a closed proposal
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-FIN-001 |
+| Requisito (FR) | FR18 |
 | Affected service(s) | finance-approval-service |
 
 ---
@@ -764,6 +783,7 @@ Scenario 1: View reports
 | Assigned to | Pending — to be assigned by the team |
 | Status | Backlog |
 | Dependencies | HU-MAINT-001, HU-BILL-001 |
+| Requisito (FR) | FR19 |
 | Affected service(s) | reports-service |
 
 ---
