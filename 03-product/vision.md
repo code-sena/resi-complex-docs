@@ -36,7 +36,7 @@ They should be few (3-5) and consistent over time.
 | Residential/commercial differentiation | Every core process (fees, communications, access) natively distinguishes residential units from commercial establishments, which competitors don't cover natively (see market research, `03-product/market-research.md`) | % of fee/communication flows with residential vs. commercial logic implemented |
 | Traceability | Every critical action (expense approval, maintenance request status, visitor/correspondence log) leaves an auditable record | % of FR01–FR19 with full history/audit trail; % of expense proposals with recorded approval history |
 | Security by design | RBAC by role, JWT with short expiration and refresh rotation, bcrypt-hashed passwords, parameterized queries — non-negotiable per team governance (`00-governance/`) | 0 critical security findings in code review/PR checks |
-| Usability & mobility | The system must be usable from a phone, since guards and maintenance staff work on the move (RNF03) | % of core flows validated as usable on mobile |
+| Usability & mobility | The system must be usable from a phone, since guards and maintenance staff work on the move (NFR03) | % of core flows validated as usable on mobile |
 
 ---
 
@@ -73,7 +73,7 @@ These principles guide design and prioritization decisions when there are trade-
 
 3. **Security is not optional:** RBAC, hashed passwords, parameterized queries, and generic client-facing errors apply to every service from day one, per `00-governance/security.md` — no service ships without them.
 
-4. **Mobile-usable, not mobile-only:** guards, maintenance staff, and residents often act from a phone; every core flow must work responsively (RNF03), without requiring a desktop-only experience.
+4. **Mobile-usable, not mobile-only:** guards, maintenance staff, and residents often act from a phone; every core flow must work responsively (NFR03), without requiring a desktop-only experience.
 
 ---
 
@@ -88,7 +88,7 @@ These principles guide design and prioritization decisions when there are trade-
 | KR1: % of FR01–FR19 implemented and passing acceptance criteria | 0% | 100% | **TBD** — end of academic term |
 | KR2: Role-based surveys/interviews applied and analyzed (5 roles) | 0 / 5 applied | 5 / 5 applied and analyzed | **TBD** |
 | KR3: Microservices catalog confirmed with instructor | Proposed, not confirmed | Confirmed | **TBD** |
-| KR4: Response time in normal operations (RNF01) | N/A (no system yet) | < 2 seconds | **TBD** |
+| KR4: Response time in normal operations (NFR01) | N/A (no system yet) | < 2 seconds | **TBD** |
 
 ---
 

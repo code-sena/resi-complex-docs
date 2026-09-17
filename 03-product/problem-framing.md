@@ -83,7 +83,7 @@ because **they lack a centralized system that integrates these processes and dis
 
 | Metric | Current baseline | 6-month target | How to measure it |
 |--------|----------------|---------------|-------------------|
-| System response time | N/A (no system exists) | < 2 seconds in normal operations (RNF01) | Per-service performance monitoring |
+| System response time | N/A (no system exists) | < 2 seconds in normal operations (NFR01) | Per-service performance monitoring |
 | % of maintenance requests with status updated in the system | 0% (manual/verbal process) | **TBD** — define with team/instructor | Requests module reports (FR19) |
 | % of fees generated automatically vs. manually | 0% | **TBD** | Fee/portfolio reports (FR08–FR10, FR19) |
 | Expense proposals with recorded approval history | 0% (no formal record, section 2) | **TBD** | Expense approval module (FR17–FR18) |
