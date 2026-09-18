@@ -52,7 +52,7 @@ This facilitates auditing and recovery.
 
 ---
 
-## Service: `iam-service`
+## Service: `auth-service`
 
 **DB Engine:** MySQL 8 — ACID transactions for credential/session integrity; relational
 fit for a small, well-defined schema (users, roles, sessions).
