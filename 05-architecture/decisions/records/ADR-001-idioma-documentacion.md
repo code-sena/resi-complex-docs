@@ -5,8 +5,9 @@
 | **ID** | ADR-001 |
 | **Date** | 2026-08-28 |
 | **Status** | Accepted |
- **Authors** | Fabian Trujillo —  Project leader |
+| **Authors** | Fabian Trujillo — Project leader |
 | **Reviewers** | Alexandra, Félix, Fabián, Julián — Development team |
+
 ---
 
 ## Context
@@ -79,3 +80,4 @@ and implementation.
 
 - Team documentation conventions → `00-governance/documentation-rules.md`
 - Domain term glossary → `01-context/glossary.md`
+
