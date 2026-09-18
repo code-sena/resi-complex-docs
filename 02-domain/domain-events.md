@@ -672,3 +672,142 @@ When an event fails after N retries, it goes to the DLQ.
 | Alert | When DLQ has > 0 messages |
 
 > See DLQ runbook in `09-microservices/services/XX-service/runbook.md`
+
+## 3. Event Flows (Business Sequences)
+
+### Flow 1: Register New Unit
+
+**Actor:** Administrator  
+**Trigger:** User opens the "New Unit" form  
+**Outcome:** Unit created, billing account initialized  
+
+**Sequence:**
+1. `RegisterUnitCommand` (units-service)
+2.  Validate: unit does not exist
+3.  `UnitCreated` event
+4.  **Listeners:**
+   - Billing: creates `BillingAccount` for that unit
+   - Access: initializes `AccessPolicy` for that unit
+   - Communications: sends email to admin
+
+**Code/Ref:**
+- Command: `commands/RegisterUnitCommand.ts`
+- Events: `UnitCreated`, `BillingAccountCreated`, `AccessPolicyInitialized`
+- Services: units-service → billing-service → access-service → communications-service
+
+---
+
+### Flow 2: Create Maintenance Request
+
+**Actor:** Resident  
+**Trigger:** Resident reports an issue
+**Outcome:** Ticket assigned to maintenance staff
+
+**Sequence:**
+1. `CreateMaintenanceRequestCommand` (maintenance-service)
+2.  Validate: resident exists, unit is valid
+3.  `MaintenanceRequestCreated` event
+4.  **Listeners:**
+   - Communications: notifies maintenance staff
+   - Reports: logs request in history
+
+**Code/Ref:**
+- Command: `commands/CreateMaintenanceRequestCommand.ts`
+- Events: `MaintenanceRequestCreated`, `NotificationSent`
+- Services: maintenance-service → communications-service
+
+---
+
+### Flow 3: Record Extraordinary Expense
+
+**Actor:** Administrator  
+**Trigger:** Admin inputs extraordinary expense
+**Outcome:** Board approves or rejects it
+
+**Sequence:**
+1. `RegisterExtraordinaryExpenseCommand` (billing-service)
+2.  Validate: amount > 0, description exists
+3.  `ExtraordinaryExpenseRegistered` event
+4.  **Listeners:**
+   - Finance: creates `ApprovalRequest` for the Board
+   - Communications: notifies the Board of Directors
+
+5. `ApproveExpenseCommand` (finance-service) — triggered by Board member
+6.  Validate: user is a Board member, vote count ≥ 50%
+7.  `ExpenseApproved` OR `ExpenseRejected` event
+8.  **Listeners:**
+   - Billing: updates budget if approved
+   - Communications: notifies admin of the outcome
+
+**Code/Ref:**
+- Commands: `RegisterExtraordinaryExpenseCommand`, `ApproveExpenseCommand`
+- Events: `ExtraordinaryExpenseRegistered`, `ExpenseApproved`, `ExpenseRejected`
+- Services: billing-service → finance-service → billing-service
+
+---
+
+### Flow 4: Monthly Fee Billing
+
+**Actor:** System (scheduler)  
+**Trigger:** End of the month  
+**Outcome:** Receipts generated for all residents
+
+**Sequence:**
+1. `CalculateMonthlyFeesCommand` (billing-service) — triggered by cron
+2.  Validate: month changed, active units exist
+3.  `MonthlyFeeCalculated` event (1 per unit)
+4.  **Listeners:**
+   - Communications: sends receipt via email
+   - Reports: logs in billing audit trail
+
+**Code/Ref:**
+- Trigger: cron job on day 1 of the month
+- Command: `CalculateMonthlyFeesCommand`
+- Events: `MonthlyFeeCalculated`
+- Services: billing-service → communications-service
+
+---
+
+### Flow 5: Access Control — Visitor Entry
+
+**Actor:** Security Guard  
+**Trigger:** Visitor arrives at the gate
+**Outcome:** Access authorized or denied
+
+**Sequence:**
+1. `AuthorizeVisitorCommand` (access-service)
+2.  Validate: visitor pre-authorized OR resident authorizes in real-time
+3.  `VisitorAuthorized` event
+4.  **Listeners:**
+   - Communications: sends confirmation to resident
+   - Reports: logs entry/exit in audit logs
+
+**Code/Ref:**
+- Command: `AuthorizeVisitorCommand`
+- Events: `VisitorAuthorized`, `VisitorDenied`
+- Services: access-service → communications-service
+
+---
+
+**Template for adding more flows:**
+
+```markdown
+### Flow N: [Flow name]
+
+**Actor:** [Who triggers it]  
+**Trigger:** [When it starts]  
+**Outcome:** [When it finishes]
+
+**Sequence:**
+1. `CommandName` (source-service)
+2.  Validations
+3.  `EventName` event
+4.  **Listeners:**
+   - Service1: does X
+   - Service2: does Y
+
+**Code/Ref:**
+- Command: path
+- Events: list
+- Services: sequence
+```
