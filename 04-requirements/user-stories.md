@@ -10,7 +10,7 @@
 
 | Cut | Sprint | Total HUs | Refined | In progress | Completed |
 |-----|--------|-----------|---------|-------------|-----------|
-| Cut 1 | Sprint 1-2 | 5 | 5 | 0 | 0 |
+| Cut 1 | Sprint 1-2 | 7 | 7 | 0 | 0 |
 | Cut 2 | Sprint 3-4 | 10 | 10 | 0 | 0 |
 | Cut 3 | Sprint 5+ | 4 | 4 | 0 | 0 |
 
@@ -73,25 +73,74 @@ Scenario 2: Invalid credentials
 | Status | Backlog |
 | Dependencies | — |
 | Requisito (FR) | FR01 |
-| Affected service(s) | iam-service |
+| Affected service(s) | auth-service |
 
 ---
 
-### HU-PPL-001 — Register a Person linked to a unit {#HU-PPL-001}
+### HU-IAM-002 — Administrator creates staff accounts and triggers user activation {#HU-IAM-002}
 
-**Epic:** EP-003
+**Epic:** EP-001
 
 > **As** an Administrator
-> **I want** to register a Person (Resident or Commercial Owner/Tenant) linked to a unit
-> **so that** the system knows who occupies each unit and can bill and notify them correctly
+> **I want** to register user accounts for complex staff (Security Guards, Maintenance Staff) and issue activation invites for Residents
+> **so that** users obtain secure personal credentials without public self-registration
 
 **Acceptance Criteria:**
 
 ```gherkin
-Scenario 1: Register a resident
-  Given a residential unit already exists
-  When  the Administrator registers a Person with type Resident and links them to that unit
-  Then  the Person is saved and appears as an occupant of the unit
+Scenario 1: Administrator creates a Security Guard account
+  Given I am logged in as Administrator
+  When  I register a user with email "guardia@complex.com" and role "SECURITY_GUARD"
+  Then  the user account is created with status "PENDING_ACTIVATION"
+  And   a secure activation link with an expiration token is generated
+
+Scenario 2: Resident completes activation and sets password
+  Given a resident receives an activation invitation link
+  When  they follow the link and submit a secure password (meeting complexity rules)
+  Then  their account status becomes "ACTIVE"
+  And   they can log in using their email and newly set password
+
+Scenario 3: Non-administrator attempts staff creation
+  Given a user with role "PERSON" or "SECURITY_GUARD"
+  When  they attempt to invoke the user creation endpoint
+  Then  the system returns 403 Forbidden
+```
+
+**Definition of Done:**
+- [ ] Code reviewed and approved
+- [ ] Unit tests written
+- [ ] Acceptance criteria verified
+- [ ] Deployed to staging
+
+| Field | Value |
+|-------|-------|
+| Story Points | 5 |
+| Priority | Must Have |
+| Target sprint | Sprint 1 |
+| Assigned to | Pending — to be assigned by the team |
+| Status | Backlog |
+| Dependencies | HU-IAM-001 |
+| Requisito (FR) | FR20 |
+| Affected service(s) | auth-service |
+
+---
+
+### HU-PPL-001 — Register a Person and assign Unit Occupancy {#HU-PPL-001}
+
+**Epic:** EP-003
+
+> **As** an Administrator
+> **I want** to register a Person (Resident or Commercial Owner/Tenant), define their occupancy type (Owner or Tenant) and link them to a unit
+> **so that** the complex census is accurate, the user receives an invitation to set their password, and ownership-level authorization is established
+
+**Acceptance Criteria:**
+
+```gherkin
+Scenario 1: Register an owner or tenant with active occupancy
+  Given a residential or commercial unit already exists
+  When  the Administrator registers a Person with their personal details, assigns occupancy type "OWNER" or "TENANT", and links them to that unit
+  Then  the Person is saved with an active UnitOccupancy record
+  And   an account activation email is dispatched to the user
 
 Scenario 2: Register a person against a non-existent unit
   Given the Administrator provides a unitId that does not exist
@@ -115,6 +164,49 @@ Scenario 2: Register a person against a non-existent unit
 | Status | Backlog |
 | Dependencies | HU-IAM-001, HU-UNIT-001 |
 | Requisito (FR) | FR01 |
+| Affected service(s) | people-service |
+
+---
+
+### HU-PPL-002 — Deactivate tenant occupancy upon lease termination {#HU-PPL-002}
+
+**Epic:** EP-003
+
+> **As** an Administrator
+> **I want** to terminate/deactivate an occupant's tenancy when their lease contract ends or they move out
+> **so that** their access to the unit's features (correspondence pickup, visitor authorization, maintenance tickets) is revoked immediately without deleting their personal profile or past history
+
+**Acceptance Criteria:**
+
+```gherkin
+Scenario 1: Deactivate tenant occupancy on lease termination
+  Given a Person has an "ACTIVE" occupancy as "TENANT" for unit "301"
+  When  the Administrator records the lease termination (or the lease reaches its end date)
+  Then  the UnitOccupancy status changes to "INACTIVE" and end_date is recorded
+  And   the user loses ownership-level authorization over unit "301" immediately
+  And   all past maintenance requests, visits, and correspondence associated with this person and unit remain intact for audit
+
+Scenario 2: Post-termination access restriction
+  Given a user whose occupancy for unit "301" is "INACTIVE"
+  When  they try to access unit "301" resources (e.g. authorize a visitor or view correspondence)
+  Then  the system returns 403 Forbidden
+```
+
+**Definition of Done:**
+- [ ] Code reviewed and approved
+- [ ] Unit tests written
+- [ ] Acceptance criteria verified (manual or automated)
+- [ ] Deployed to staging
+
+| Field | Value |
+|-------|-------|
+| Story Points | 5 |
+| Priority | Must Have |
+| Target sprint | Sprint 1 |
+| Assigned to | Pending — to be assigned by the team |
+| Status | Backlog |
+| Dependencies | HU-PPL-001 |
+| Requisito (FR) | FR03 |
 | Affected service(s) | people-service |
 
 ---

@@ -584,6 +584,30 @@ AGGR-INV-003: requestedAmount must be greater than 0
 
 ---
 
+### Aggregate: Person
+
+**Aggregate Root:** Person
+
+**Internal entities:**
+- `UnitOccupancy` — represents the formal occupancy or ownership link between a Person and a specific Unit.
+
+**Value Objects:**
+- `OccupancyType` (enum: `OWNER` / `TENANT`)
+- `OccupancyStatus` (enum: `ACTIVE` / `INACTIVE`)
+
+**Aggregate invariants:**
+
+```
+AGGR-INV-001: Only an occupant with an ACTIVE occupancy has ownership-level authorization to unit-scoped data and operations (correspondence pickup, visitor authorization, maintenance requests).
+AGGR-INV-002: Revoking a lease marks the occupancy as INACTIVE with an end_date; it never deletes the Person, their User account, or their historical audit trail.
+AGGR-INV-003: Physical units never hold authentication credentials. Credentials strictly belong to the individual Person in IAM.
+```
+
+**Why do these objects form an aggregate?**
+> A Person can own or rent multiple units across time. Modeling occupancy as an entity inside the Person domain boundary ensures that ending a lease does not destroy past audit logs (maintenance tickets, payments, visits) and eliminates credential-sharing risks.
+
+---
+
 ## Summary table of tactical building blocks
 
 | Name | Type | Bounded Context | Aggregate Root? |
@@ -591,6 +615,7 @@ AGGR-INV-003: requestedAmount must be greater than 0
 | Unit | Entity | Units Management | Yes |
 | Commercial Establishment | Entity | Units Management | No (inside Unit) |
 | Person | Entity | People Management | Yes |
+| Unit Occupancy | Entity | People Management | No (inside Person) |
 | Maintenance Request | Entity | Maintenance | Yes |
 | Administration Fee | Entity | Billing | Yes |
 | Announcement | Entity | Communications | Yes |

@@ -69,8 +69,8 @@ CREATE TABLE users (
   role            VARCHAR(20)  NOT NULL
                   CHECK (role IN ('ADMINISTRATOR','BOARD','PERSON','MAINTENANCE_STAFF','SECURITY_GUARD')),
   person_id       CHAR(36)     NULL,           -- FK to people-service, table `person`; NULL for staff roles
-  status          VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE'
-                  CHECK (status IN ('ACTIVE','INACTIVE')),
+  status          VARCHAR(20)  NOT NULL DEFAULT 'PENDING_ACTIVATION'
+                  CHECK (status IN ('ACTIVE','INACTIVE','PENDING_ACTIVATION')),
 
   created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -157,7 +157,7 @@ CREATE TABLE person (
   document_id     VARCHAR(30)  NOT NULL,
   person_type     VARCHAR(20)  NOT NULL
                   CHECK (person_type IN ('RESIDENT','COMMERCIAL_OWNER','COMMERCIAL_TENANT')),
-  unit_id         CHAR(36)     NOT NULL,        -- logical ref → units-service.units.id
+  unit_id         CHAR(36)     NULL,            -- primary logical ref → units-service.units.id; historical/multi-unit tenancy tracked in unit_occupancies
   phone           VARCHAR(20)  NULL,
   email           VARCHAR(255) NULL,
 
@@ -173,7 +173,51 @@ CREATE INDEX idx_person_unit_id ON person (unit_id);
 
 **Modeling decisions:**
 1. Single table `person` with `person_type`, per glossary: "Do NOT model Resident and Owner/Tenant as separate authentication roles."
-2. `unit_id` is a logical reference to `units-service`, validated via API on create.
+2. `unit_id` is an optional logical reference to `units-service`. Multi-unit assignments and tenancy lifecycle are tracked in `unit_occupancies`.
+
+### Table: `unit_occupancies`
+
+**Purpose:** Tracks formal tenancy, ownership, and contract lifecycle for Units (`FR01`, `FR03`). Associates a `person` with a `unit` with an explicit role (`OWNER` / `TENANT`), status, and validity dates.
+
+```sql
+CREATE TABLE unit_occupancies (
+  id              CHAR(36)     PRIMARY KEY,
+  unit_id         CHAR(36)     NOT NULL,        -- logical ref → units-service.units.id
+  person_id       CHAR(36)     NOT NULL,        -- FK → person.id
+  occupancy_type  VARCHAR(20)  NOT NULL
+                  CHECK (occupancy_type IN ('OWNER','TENANT')),
+  status          VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE'
+                  CHECK (status IN ('ACTIVE','INACTIVE')),
+  start_date      DATE         NOT NULL,
+  end_date        DATE         NULL,
+
+  created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at      TIMESTAMP    NULL,
+
+  FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_occupancies_unit_id ON unit_occupancies (unit_id);
+CREATE INDEX idx_occupancies_person_id ON unit_occupancies (person_id);
+CREATE INDEX idx_occupancies_status ON unit_occupancies (status);
+```
+
+**Data dictionary:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| unit_id | CHAR(36) | Logical reference to `units-service.units.id` |
+| person_id | CHAR(36) | FK referencing `person.id` within `people-service` |
+| occupancy_type | VARCHAR(20) | `OWNER` (permanent owner) or `TENANT` (arrendatario con contrato) |
+| status | VARCHAR(20) | `ACTIVE` (currently occupies/manages unit) or `INACTIVE` (past tenant / expired lease) |
+| start_date | DATE | Inception date of tenancy or ownership |
+| end_date | DATE | Lease expiration date or move-out date; NULL if ongoing |
+
+**Tenancy Lifecycle & Security decisions:**
+1. Decouples personal identity (`person`) from physical residence (`unit`). When a tenant's contract ends, the Administrator sets `status = 'INACTIVE'` and stamps `end_date`.
+2. Ownership-level authorization checks strictly query `unit_occupancies.status = 'ACTIVE'`. An ex-tenant instantly loses access to unit-specific features (correspondence pickup, visitor authorization, maintenance requests) without deleting their user record or breaking historical audit trails.
+3. An owner can hold active occupancies across multiple units; a unit can have both an active `OWNER` and an active `TENANT`.
 
 ---
 
