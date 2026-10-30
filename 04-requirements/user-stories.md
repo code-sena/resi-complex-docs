@@ -723,7 +723,7 @@ Scenario 1: Log exit for an open visit
 Scenario 1: Log correspondence
   Given a valid destination unit
   When  I log an incoming package for it
-  Then  it is saved with status PENDING and a CorrespondenceReceived event is published
+  Then  it is saved with status PENDING, a 4-digit pickup PIN is generated for unit occupants, and a CorrespondenceReceived event is published
 ```
 
 **Definition of Done:**
@@ -760,7 +760,12 @@ Scenario 1: Log correspondence
 Scenario 1: View pending correspondence
   Given I have correspondence logged for my unit with status PENDING
   When  I open my correspondence view
-  Then  I see only correspondence for my own unit (correspondence:read:own)
+  Then  I see only correspondence for my own unit (correspondence:read:own) along with its 4-digit pickup PIN
+
+Scenario 2: Collect package with secure PIN
+  Given I have a pending package with an issued 4-digit pickup PIN
+  When  I provide the PIN to the Security Guard and the guard submits it
+  Then  the correspondence transitions to DELIVERED with delivery timestamp and my user reference (INV-003)
 ```
 
 **Definition of Done:**

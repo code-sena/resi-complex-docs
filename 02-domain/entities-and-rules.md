@@ -235,8 +235,8 @@ INV-005: Payments reduce the remaining balance; when balance reaches 0, the stat
   - Violation: overpayment or negative amounts throw DomainException
   - Implementation: validated in the payment registration domain service
   - Rule: PAID is a terminal state
-  - Violation: DomainException if a revert is attempted
-  - Implementation: the status-change method validates the current status
+
+
 
 
 ```
@@ -290,6 +290,8 @@ class AdministrationFee {
 | status | enum | PENDING / DELIVERED | Yes | See state machine |
 | receivedAt | DateTime | When it was logged | Yes | Immutable, set on creation |
 | deliveredAt | DateTime | When it was picked up | No | Set only on delivery |
+| pickupPin | string | 4-digit security code for package handover | Yes | Auto-generated, visible only to unit occupants |
+| deliveredTo | UUID | Person who picked up the package | No | Stamped on delivery |
 
 **Ownership-level authorization:** a Person may only read correspondence for their own
 unit (`correspondence:read:own`); only a Security Guard may create entries
@@ -316,8 +318,17 @@ INV-001: Correspondence must reference a valid, existing unit
 
 INV-002: DELIVERED is a terminal state
   - Rule: once marked DELIVERED, it cannot revert to PENDING
-  - Violation: DomainException if a revert is attempted
-  - Implementation: the status-change method validates the current status
+
+
+
+
+INV-003: Delivery requires matching pickupPin for non-repudiation
+  - Rule: Security Guard must provide the recipient's 4-digit PIN to transition to DELIVERED
+  - Violation: DomainException if PIN does not match
+  - Implementation: validated in the markDelivered method
+
+
+
 
 
 ```
@@ -565,7 +576,16 @@ AGGR-INV-003: Commercial units face outward to the public street; their customer
 
 ```
 AGGR-INV-001: unitId must reference an existing Unit
-AGGR-INV-002: DELIVERED is a terminal state (see entity INV-002)
+AGGR-INV-002: DELIVERED is a terminal state
+  - Rule: once marked DELIVERED, it cannot revert to PENDING
+
+
+
+
+INV-003: Delivery requires matching pickupPin for non-repudiation
+  - Rule: Security Guard must provide the recipient's 4-digit PIN to transition to DELIVERED
+  - Violation: DomainException if PIN does not match
+  - Implementation: validated in the markDelivered method (see entity INV-002)
 ```
 
 **Why is this a separate aggregate from Visit, even in the same context?**

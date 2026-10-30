@@ -397,7 +397,9 @@ CREATE TABLE correspondence (
   status          VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
                   CHECK (status IN ('PENDING','DELIVERED')),
   received_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  delivered_at    TIMESTAMP    NULL
+  delivered_at    TIMESTAMP    NULL,
+  pickup_pin      CHAR(4)      NOT NULL,        -- 4-digit security PIN for recipient verification
+  delivered_to    CHAR(36)     NULL             -- logical ref -> people-service.person.id
 );
 
 CREATE INDEX idx_correspondence_unit_id ON correspondence (unit_id);
