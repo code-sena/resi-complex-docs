@@ -445,8 +445,12 @@ CREATE TABLE expense_proposals (
   description     TEXT          NOT NULL,
   amount          DECIMAL(12,2) NOT NULL,
   created_by      CHAR(36)      NOT NULL,       -- logical ref → iam-service (ADMINISTRATOR)
-  status          VARCHAR(20)   NOT NULL DEFAULT 'PENDING'
-                  CHECK (status IN ('PENDING','APPROVED','REJECTED')),
+  voting_deadline DATE          NOT NULL,
+  required_votes  INT           NOT NULL DEFAULT 3,
+  approvals_count INT           NOT NULL DEFAULT 0,
+  rejections_count INT          NOT NULL DEFAULT 0,
+  status          VARCHAR(20)   NOT NULL DEFAULT 'UNDER_REVIEW'
+                  CHECK (status IN ('UNDER_REVIEW','APPROVED','REJECTED')),
 
   created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

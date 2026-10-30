@@ -619,6 +619,11 @@ AGGR-INV-001: A proposal in APPROVED or REJECTED (terminal) status does not acce
 AGGR-INV-002: The Approval history is never deleted, only appended (append-only) —
               this is what guarantees the traceability required by FR18
 AGGR-INV-003: requestedAmount must be greater than 0
+AGGR-INV-004: Automatic quorum decision: A proposal automatically transitions to APPROVED
+              when positive approvals reach majority (50% + 1 of active Board members).
+              If negative votes reach 50% or the voting deadline expires without majority,
+              it transitions to REJECTED.
+AGGR-INV-005: votingDeadline must be set on creation and cannot be in the past.
 ```
 
 **Why do these objects form an aggregate?**

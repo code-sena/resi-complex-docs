@@ -842,7 +842,7 @@ Scenario 2: Guard validates pre-authorized visitor
 
 ```gherkin
 Scenario 1: Create a proposal
-  Given a subject, requested amount, and justification
+  Given a subject, requested amount, justification, and a voting deadline in the future
   When  I submit the proposal
   Then  it is saved with status UNDER_REVIEW and an ExpenseProposalCreated event is published
 
@@ -883,12 +883,17 @@ Scenario 2: Amount is zero or negative
 **Acceptance Criteria:**
 
 ```gherkin
-Scenario 1: Approve a proposal
+Scenario 1: Board member records vote
   Given a proposal with status UNDER_REVIEW
-  When  I approve it
-  Then  its status changes to APPROVED, an ExpenseProposalApproved event is published, and the decision is appended to its history
+  When  I vote to approve or reject with comments
+  Then  my vote is permanently appended to its history (AGGR-INV-002)
 
-Scenario 2: Decide on a closed proposal
+Scenario 2: Automatic majority approval
+  Given a proposal with required approvals threshold (50% + 1 of active Board members)
+  When  the threshold of positive votes is reached before the deadline
+  Then  the proposal status transitions to APPROVED and an ExpenseProposalApproved event is published (AGGR-INV-004)
+
+Scenario 3: Decide on a closed proposal
   Given a proposal already APPROVED or REJECTED
   When  someone tries to record a new decision on it
   Then  the system rejects it (AGGR-INV-001: terminal status)
