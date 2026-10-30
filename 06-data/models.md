@@ -384,6 +384,30 @@ CREATE TABLE visitor_vehicles (
 CREATE INDEX idx_vehicles_visit_id ON visitor_vehicles (visit_id);
 ```
 
+### Table: `visitor_preauthorizations`
+
+**Purpose:** Pre-authorizations registered in advance by residents for upcoming guests or contractors.
+
+```sql
+CREATE TABLE visitor_preauthorizations (
+  id              CHAR(36)     PRIMARY KEY,
+  unit_id         CHAR(36)     NOT NULL,        -- logical ref → units-service
+  created_by      CHAR(36)     NOT NULL,        -- logical ref → people-service.person.id
+  visitor_name    VARCHAR(150) NOT NULL,
+  visitor_doc_id  VARCHAR(30)  NULL,
+  vehicle_plate   VARCHAR(15)  NULL,
+  valid_date      DATE         NOT NULL,
+  status          VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
+                  CHECK (status IN ('PENDING','USED','EXPIRED')),
+
+  created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_preauth_unit_id ON visitor_preauthorizations (unit_id);
+CREATE INDEX idx_preauth_valid_date ON visitor_preauthorizations (valid_date, status);
+```
+
 ### Table: `correspondence`
 
 **Purpose:** Direct mapping of Entity: Correspondence (`02-domain/entities-and-rules.md`).

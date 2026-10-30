@@ -536,7 +536,7 @@ AGGR-INV-002: assignedTo can only be set once the status leaves PENDING
 **Aggregate Root:** Visit
 
 **Internal entities:**
-- None — a Visit is a simple, single-entity aggregate.
+- `VisitorPreAuthorization` — created by a unit occupant in advance, permitting verified single-click check-in at the guard desk.
 
 **Value Objects:**
 - `VisitorVehicle` (plate, vehicle type — optional, embedded)
@@ -551,6 +551,9 @@ AGGR-INV-002: A Visit's vehicle, if present, must have both plate and vehicleTyp
 AGGR-INV-003: Commercial units face outward to the public street; their customer foot traffic
               enters directly from outside and is exempt from gate logging. Visit records
               strictly apply to entries into the interior residential perimeter.
+AGGR-INV-004: When a pre-authorized visitor arrives, the Security Guard validates the matching
+              VisitorPreAuthorization; confirming entry marks it USED and registers the Visit
+              without requiring real-time intercom calls.
 ```
 
 **Why do these objects form an aggregate?**

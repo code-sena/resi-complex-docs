@@ -788,6 +788,48 @@ Scenario 2: Collect package with secure PIN
 
 ---
 
+### HU-ACC-006 — Pre-authorize a visitor {#HU-ACC-006}
+
+**Epic:** EP-007
+
+> **As** a Person (Resident or Commercial Owner/Tenant)
+> **I want** to pre-authorize the entry of a visitor or service contractor in advance
+> **so that** the visitor experiences seamless entry at the gate without phone call interruptions
+
+**Acceptance Criteria:**
+
+```gherkin
+Scenario 1: Pre-authorize a guest
+  Given I am logged in as Person with an active occupancy
+  When  I register a visitor pre-authorization with visitor name, valid date, and optional vehicle plate
+  Then  the pre-authorization is saved with status PENDING
+
+Scenario 2: Guard validates pre-authorized visitor
+  Given an incoming visitor with a valid PENDING pre-authorization
+  When  the Security Guard checks the plate or visitor name and confirms entry
+  Then  the pre-authorization status transitions to USED
+  And   a Visit entry record is automatically logged (AGGR-INV-004)
+```
+
+**Definition of Done:**
+- [ ] Code reviewed and approved
+- [ ] Unit tests written
+- [ ] Acceptance criteria verified (manual or automated)
+- [ ] Deployed to staging
+
+| Field | Value |
+|-------|-------|
+| Story Points | 3 |
+| Priority | Should Have |
+| Target sprint | Sprint 4 |
+| Assigned to | Pending — to be assigned by the team |
+| Status | Backlog |
+| Dependencies | HU-UNIT-001, HU-PPL-001 |
+| Requisito (FR) | FR13 |
+| Affected service(s) | access-control-service |
+
+---
+
 ### HU-FIN-001 — Create an extraordinary expense proposal {#HU-FIN-001}
 
 **Epic:** EP-008
