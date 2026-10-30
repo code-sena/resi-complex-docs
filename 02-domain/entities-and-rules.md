@@ -509,7 +509,7 @@ AGGR-INV-002: assignedTo can only be set once the status leaves PENDING
 
 **Value Objects:**
 - `VisitorVehicle` (plate, vehicle type — optional, embedded)
-- `VisitorType` (enum: PERSONAL_VISITOR / COMMERCIAL_CLIENT)
+- `VisitorType` (enum: PERSONAL_VISITOR / SERVICE_PROVIDER)
 
 **Aggregate invariants:**
 
@@ -517,6 +517,9 @@ AGGR-INV-002: assignedTo can only be set once the status leaves PENDING
 AGGR-INV-001: unitId must reference an existing Unit
 AGGR-INV-002: A Visit's vehicle, if present, must have both plate and vehicleType set
               (no partial vehicle data)
+AGGR-INV-003: Commercial units face outward to the public street; their customer foot traffic
+              enters directly from outside and is exempt from gate logging. Visit records
+              strictly apply to entries into the interior residential perimeter.
 ```
 
 **Why do these objects form an aggregate?**

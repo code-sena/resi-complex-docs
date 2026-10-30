@@ -574,7 +574,7 @@ Scenario 1: Publish to commercial units only
 **Epic:** EP-007
 
 > **As** a Security Guard
-> **I want** to log a visitor's entry, distinguishing a personal visitor from a commercial client
+> **I want** to log an external visitor's entry into the residential perimeter, distinguishing personal visitors from service providers
 > **so that** there is a traceable record of who enters and to which unit
 
 **Acceptance Criteria:**
@@ -589,6 +589,11 @@ Scenario 2: Invalid destination unit
   Given I enter a unitId that does not exist
   When  I try to save the visit
   Then  the system rejects it (AGGR-INV-001)
+
+Scenario 3: External commercial client entry
+  Given a customer visiting a street-facing commercial establishment
+  When  they enter the store directly from the public street
+  Then  no residential visit is logged at the front desk (AGGR-INV-003)
 ```
 
 **Definition of Done:**
