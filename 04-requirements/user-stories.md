@@ -352,6 +352,11 @@ Scenario 2: Missing priority
   Given I do not select a priority
   When  I try to submit the request
   Then  the system rejects it (INV-003: priority is required)
+
+Scenario 3: Report common area maintenance
+  Given an issue located in a common area (e.g. "Elevator Tower 1")
+  When  I create a request selecting locationType = COMMON_AREA and specify "Elevator Tower 1"
+  Then  the request is saved with status PENDING without requiring a private unitId (INV-001)
 ```
 
 **Definition of Done:**
@@ -390,10 +395,18 @@ Scenario 1: Assign a pending request
   When  the Administrator assigns it to a Maintenance Staff member
   Then  the status changes to ASSIGNED
 
-Scenario 2: Invalid status transition
-  Given a request with status RESOLVED
-  When  someone tries to move it back to IN_PROGRESS
-  Then  the system rejects the change (INV-002: status can only move forward)
+Scenario 2: Technical work completion and resident verification
+  Given a request in status IN_PROGRESS
+  When  the Maintenance Staff marks the repair completed
+  Then  the status becomes WORK_COMPLETED
+  And   when the resident approves conformity (or 48h elapses), status transitions to RESOLVED
+
+Scenario 3: Resident rejects unsatisfactory repair
+  Given a request in status WORK_COMPLETED
+  When  the resident rejects the repair with a rejection note
+  Then  the status returns to IN_PROGRESS for rework (INV-002)
+
+
 ```
 
 **Definition of Done:**

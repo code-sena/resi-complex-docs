@@ -234,14 +234,19 @@ persistence mapping.
 CREATE TABLE maintenance_requests (
   id              CHAR(36)     PRIMARY KEY,
   person_id       CHAR(36)     NOT NULL,       -- logical ref → people-service (table `person`)
-  unit_id         CHAR(36)     NOT NULL,       -- logical ref → units-service
+  unit_id         CHAR(36)     NULL,           -- logical ref → units-service; NULL if common area
+  location_type   VARCHAR(20)  NOT NULL DEFAULT 'PRIVATE_UNIT'
+                  CHECK (location_type IN ('PRIVATE_UNIT','COMMON_AREA')),
+  common_area_name VARCHAR(100) NULL,          -- e.g. 'Ascensor Torre 1', 'Piscina'
   type            VARCHAR(50)  NOT NULL,       -- controlled list, see Data Dictionary
   description     VARCHAR(500) NOT NULL,
   priority        VARCHAR(10)  NOT NULL
                   CHECK (priority IN ('LOW','MEDIUM','HIGH','URGENT')),
   assigned_to     CHAR(36)     NULL,           -- logical ref → iam-service user (MAINTENANCE_STAFF)
   status          VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
-                  CHECK (status IN ('PENDING','ASSIGNED','IN_PROGRESS','RESOLVED')),
+                  CHECK (status IN ('PENDING','ASSIGNED','IN_PROGRESS','WORK_COMPLETED','RESOLVED')),
+  resident_rating INT          NULL CHECK (resident_rating BETWEEN 1 AND 5),
+  rejection_notes VARCHAR(255) NULL,
 
   created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

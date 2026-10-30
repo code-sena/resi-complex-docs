@@ -83,12 +83,14 @@ They live in the Aggregate Root and are validated on every operation.
 |-----------|------|-------------|---------|-------|
 | id | UUID | Unique identifier | Yes | Auto-generated on creation |
 | personId | UUID | Who reported the request | Yes | Must exist in People Management |
-| unitId | UUID | Where the issue occurred | Yes | Must exist in Units Management |
+| unitId | UUID | Where the issue occurred | No | Required if locationType == PRIVATE_UNIT |
+| locationType | enum | PRIVATE_UNIT / COMMON_AREA | Yes | Defaults to PRIVATE_UNIT |
+| commonAreaName | string | Name of the common area (e.g. Elevator, Pool) | No | Required if locationType == COMMON_AREA |
 | type | string | Damage category (plumbing, electrical, etc.) | Yes | Controlled list, defined in `06-data/` |
 | description | string | Report details | Yes | Max. 500 characters |
 | priority | enum | LOW / MEDIUM / HIGH / URGENT | Yes | Set by the Person on creation |
 | assignedTo | UUID | Assigned maintenance staff member | No | Assigned after creation |
-| status | enum | PENDING / ASSIGNED / IN_PROGRESS / RESOLVED | Yes | See state machine |
+| status | enum | PENDING / ASSIGNED / IN_PROGRESS / WORK_COMPLETED / RESOLVED | Yes | See state machine |
 | evidencePhotoUrls | string[] | Photos attached to the request | No | **Future candidate**, not required for the current delivery — flagged in `03-product/resi-complex-tech-watch.md` as a low-cost enhancement seen in competitor TUCO 360; confirm with the team before implementing |
 | createdAt | DateTime | Creation date | Yes | Immutable, set on creation |
 | updatedAt | DateTime | Last modification | Yes | Updated automatically |
@@ -108,18 +110,19 @@ PENDING ──(assign)──▶ ASSIGNED ──(start)──▶ IN_PROGRESS ─�
 |-------|-------------|---------------------|
 | PENDING | Just created, no staff assigned yet | → ASSIGNED |
 | ASSIGNED | Has assigned maintenance staff, not started yet | → IN_PROGRESS |
-| IN_PROGRESS | Staff is actively working on it | → RESOLVED |
+| IN_PROGRESS | Staff is actively working on it | → WORK_COMPLETED |
+| WORK_COMPLETED | Work performed; awaiting resident approval | → RESOLVED, → IN_PROGRESS |
 | RESOLVED | Terminal — work finished | Terminal state |
 
 **Invariants (Business rules that MUST ALWAYS hold):**
 
 ```
-INV-001: Staff cannot be assigned to a request without a valid unit or person
+INV-001: A request requires personId and either unitId (if PRIVATE_UNIT) or commonAreaName (if COMMON_AREA)
   - Rule: unitId and personId must exist before the request is created
   - Violation: the request is not saved if either is missing or invalid
   - Implementation: validated in the constructor / factory method
 
-INV-002: Status can only move forward, never backward
+INV-002: WORK_COMPLETED requires resident verification before RESOLVED; rejection returns to IN_PROGRESS
   - Rule: PENDING → ASSIGNED → IN_PROGRESS → RESOLVED is the only valid sequence
   - Violation: DomainException if, e.g., an attempt is made to move from RESOLVED to IN_PROGRESS
   - Implementation: the status-change method validates the allowed transition
