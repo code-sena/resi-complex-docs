@@ -271,10 +271,12 @@ CREATE TABLE administration_fees (
   period                    CHAR(7)       NOT NULL,   -- format YYYY-MM
   unit_type_at_generation   VARCHAR(20)   NOT NULL
                             CHECK (unit_type_at_generation IN ('RESIDENTIAL','COMMERCIAL')),
-  amount                    DECIMAL(12,2) NOT NULL,   -- Money VO; currency fixed to COP
+  total_amount              DECIMAL(12,2) NOT NULL,   -- Total fee due
+  paid_amount               DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  balance                   DECIMAL(12,2) GENERATED ALWAYS AS (total_amount - paid_amount) STORED,
   due_date                  DATE          NOT NULL,
   status                    VARCHAR(20)   NOT NULL DEFAULT 'PENDING'
-                            CHECK (status IN ('PENDING','PAID','OVERDUE')),
+                            CHECK (status IN ('PENDING','PARTIALLY_PAID','PAID','OVERDUE')),
 
   created_at                TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at                TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -293,18 +295,28 @@ CREATE INDEX idx_fees_unit_id ON administration_fees (unit_id);
 CREATE TABLE payments (
   id              CHAR(36)      PRIMARY KEY,
   fee_id          CHAR(36)      NOT NULL REFERENCES administration_fees(id) ON DELETE RESTRICT,
+  payer_id        CHAR(36)      NOT NULL,      -- logical ref -> people-service.person.id (Owner or Tenant)
   amount_paid     DECIMAL(12,2) NOT NULL,
+  payment_method  VARCHAR(30)   NOT NULL DEFAULT 'BANK_TRANSFER'
+                  CHECK (payment_method IN ('BANK_TRANSFER','CASH','ONLINE')),
+  voucher_url     VARCHAR(255)  NULL,          -- payment receipt upload URL
+  status          VARCHAR(20)   NOT NULL DEFAULT 'APPROVED'
+                  CHECK (status IN ('PENDING_VERIFICATION','APPROVED','REJECTED')),
+  verified_by     CHAR(36)      NULL,          -- Administrator user id
   paid_at         TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   CHECK (amount_paid > 0)
 );
 
 CREATE INDEX idx_payments_fee_id ON payments (fee_id);
+CREATE INDEX idx_payments_payer_id ON payments (payer_id);
 ```
 
 **Modeling decisions:**
 1. `unit_type_at_generation` is copied and never recalculated (INV-002 in `entities-and-rules.md`) — no trigger syncs it from `units-service`.
 2. `UNIQUE (unit_id, period)` prevents generating two fees for the same unit in the same month — an invariant not stated explicitly in `02-domain/` but implied by "monthly charge"; confirm with the team before relying on it.
+3. Partial payments supported: `paid_amount` accumulates validated payments; `balance` calculates remaining debt. Status reflects `PARTIALLY_PAID` until full clearance.
+4. Dual visibility: Both Owner and active Tenant have `fees:read:own` authorization over their unit's fee and can submit payment vouchers.
 
 ---
 

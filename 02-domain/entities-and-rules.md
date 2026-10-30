@@ -180,9 +180,11 @@ class MaintenanceRequest {
 | unitId | UUID | Billed unit | Yes | Must exist in Units Management |
 | period | string | Fee month/year (e.g. `2026-09`) | Yes | Format `YYYY-MM` |
 | unitTypeAtGeneration | enum | RESIDENTIAL / COMMERCIAL | Yes | Copied from the unit's type on generation; not recalculated afterward |
-| amount | Money (VO) | Amount due according to the applicable rate | Yes | Must be > 0 |
+| totalAmount | Money (VO) | Total fee due according to the rate | Yes | Must be > 0 |
+| paidAmount | Money (VO) | Total amount paid to date | Yes | Starts at 0, <= totalAmount |
+| balance | Money (VO) | Remaining unpaid balance (total - paid) | Yes | Calculated |
 | dueDate | Date | Deadline without a surcharge | Yes | After the generation date |
-| status | enum | PENDING / PAID / OVERDUE | Yes | See state machine |
+| status | enum | PENDING / PARTIALLY_PAID / PAID / OVERDUE | Yes | See state machine |
 | createdAt | DateTime | Creation date | Yes | Immutable |
 | updatedAt | DateTime | Last modification | Yes | Automatic |
 
@@ -199,8 +201,9 @@ PENDING ──(register payment)──▶ PAID
 
 | State | Description | Allowed transitions |
 |-------|-------------|---------------------|
-| PENDING | Generated, within the deadline | → PAID, → OVERDUE |
-| OVERDUE | Past the due date without payment | → PAID |
+| PENDING | Generated, within the deadline | → PARTIALLY_PAID, → PAID, → OVERDUE |
+| PARTIALLY_PAID | Partial payment recorded, balance remains | → PAID, → OVERDUE |
+| OVERDUE | Past the due date with outstanding balance | → PARTIALLY_PAID, → PAID |
 | PAID | Terminal — payment recorded | Terminal state |
 
 **Invariants (Business rules that MUST ALWAYS hold):**
@@ -217,10 +220,22 @@ INV-002: The applied rate depends on the unit type AT THE MOMENT the fee is gene
   - Violation: modifying unitTypeAtGeneration after the fee is created throws an exception
   - Implementation: the field is read-only after the constructor
 
-INV-003: A PAID fee cannot revert to PENDING or OVERDUE
+INV-003: A PAID fee cannot revert to PENDING, PARTIALLY_PAID or OVERDUE
+
+INV-004: Dual visibility: Both registered OWNER and active TENANT of a unit can view fee statements (fees:read:own)
+  - Rule: either party may consult debts and submit payment vouchers for the unit
+  - Violation: non-occupants receive 403 Forbidden
+  - Implementation: verified at the service layer via unit_occupancies
+
+INV-005: Payments reduce the remaining balance; when balance reaches 0, the status transitions to PAID
+  - Rule: paidAmount <= totalAmount; balance = totalAmount - paidAmount
+  - Violation: overpayment or negative amounts throw DomainException
+  - Implementation: validated in the payment registration domain service
   - Rule: PAID is a terminal state
   - Violation: DomainException if a revert is attempted
   - Implementation: the status-change method validates the current status
+
+
 ```
 
 **Code example (TypeScript/Java):**
@@ -300,6 +315,8 @@ INV-002: DELIVERED is a terminal state
   - Rule: once marked DELIVERED, it cannot revert to PENDING
   - Violation: DomainException if a revert is attempted
   - Implementation: the status-change method validates the current status
+
+
 ```
 
 **Code example (TypeScript/Java):**

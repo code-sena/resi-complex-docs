@@ -506,10 +506,16 @@ Scenario 2: Unit type changes after fee generation
 **Acceptance Criteria:**
 
 ```gherkin
-Scenario 1: View own fees
+Scenario 1: View own fees (dual visibility for Owner and Tenant)
   Given I have fees generated for my unit
   When  I open my fee status view
-  Then  I see only the fees for my own unit(s) (fees:read:own)
+  Then  I see the total fee, paid amount, and remaining balance for my unit (fees:read:own)
+
+Scenario 2: Submit payment voucher and record partial payment
+  Given an unpaid or partially paid fee for my unit
+  When  I submit a payment with amount and voucher receipt
+  Then  the payment is registered with status "PENDING_VERIFICATION"
+  And   upon Administrator approval, the fee reflects the updated balance and status (PARTIALLY_PAID or PAID)
 ```
 
 **Definition of Done:**
