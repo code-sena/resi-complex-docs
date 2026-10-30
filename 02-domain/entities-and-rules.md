@@ -432,6 +432,22 @@ enum UnitType { RESIDENTIAL = 'RESIDENTIAL', COMMERCIAL = 'COMMERCIAL' }
 
 ---
 
+### Value Object: AnnouncementPriority
+
+**Description:** Defines the urgency level of an announcement (`INFORMATIVE`, `IMPORTANT`, `EMERGENCY`). When set to `EMERGENCY`, triggers real-time external broadcast (email/push) to all active occupants.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| value | enum | `INFORMATIVE` \| `IMPORTANT` \| `EMERGENCY` |
+
+```typescript
+enum AnnouncementPriority { INFORMATIVE = 'INFORMATIVE', IMPORTANT = 'IMPORTANT', EMERGENCY = 'EMERGENCY' }
+```
+
+---
+
 ### Value Object: Email
 
 **Description:** Email address used by `IAM` (credentials) and `People Management` (contact info).

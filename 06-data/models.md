@@ -338,6 +338,8 @@ CREATE TABLE announcements (
   body            TEXT         NOT NULL,
   scope           VARCHAR(20)  NOT NULL
                   CHECK (scope IN ('ALL','RESIDENTIAL_ONLY','COMMERCIAL_ONLY')),
+  priority        VARCHAR(20)  NOT NULL DEFAULT 'INFORMATIVE'
+                  CHECK (priority IN ('INFORMATIVE','IMPORTANT','EMERGENCY')),
   published_by    CHAR(36)     NOT NULL,       -- logical ref → iam-service (ADMINISTRATOR)
 
   created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,

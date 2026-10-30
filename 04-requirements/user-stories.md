@@ -566,6 +566,11 @@ Scenario 1: Publish to commercial units only
   Given I write an announcement and select scope = COMMERCIAL
   When  I publish it
   Then  only Persons linked to commercial units see it, and an AnnouncementPublished event is published
+
+Scenario 2: Emergency announcement broadcast
+  Given a critical complex event (e.g. immediate utility outage)
+  When  I publish an announcement with priority = EMERGENCY
+  Then  the announcement is posted and an urgent broadcast event is published triggering real-time email alerts to all affected active occupants
 ```
 
 **Definition of Done:**
