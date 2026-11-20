@@ -680,11 +680,12 @@ CREATE TABLE expense_proposals (
 
 ```sql
 CREATE TABLE approvals (
-  id                  CHAR(36)    NOT NULL,
-  expense_proposal_id CHAR(36)    NOT NULL,
-  decided_by          CHAR(36)    NOT NULL,    -- Logical ref → iam_db.users.id (BOARD)
-  decision            VARCHAR(10) NOT NULL,
-  decided_at          TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id                  CHAR(36)     NOT NULL,
+  expense_proposal_id CHAR(36)     NOT NULL,
+  decided_by          CHAR(36)     NOT NULL,    -- Logical ref → iam_db.users.id (BOARD)
+  decision            VARCHAR(10)  NOT NULL,
+  comments            VARCHAR(500) NULL,        -- Optional Board rationale recorded with the vote (HU-FIN-002)
+  decided_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   -- Append-only ledger by design: no updated_at, no deleted_at, and no UPDATE/DELETE DB privileges
 
   PRIMARY KEY (id),
@@ -704,6 +705,7 @@ CREATE TABLE approvals (
 | `voting_deadline` / `required_votes` | `DATE` / `INT` | Quorum configuration defining when voting closes and threshold for `APPROVED`/`REJECTED` |
 | `approvals_count` / `rejections_count` | `INT` | Aggregate tally updated transactionally alongside each appended `approvals` row |
 | `approvals.decision` | `VARCHAR(10)` | Immutable Board member vote (`APPROVED` or `REJECTED`) |
+| `approvals.comments` | `VARCHAR(500)` | Optional Board member rationale attached to the vote (`HU-FIN-002`) |
 
 **Modeling decisions:**
 1. `uq_approvals_proposal_member` guarantees **one vote per Board member per proposal** at the database level.

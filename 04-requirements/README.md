@@ -1,123 +1,59 @@
 # 04 — Requirements
 
-> **What is this?** The formal specification of what the system must do.
-> Functional: what it does. Non-functional: how well it does it.
+> **What is this?** The formal, traceable specification of what `resi-complex` must do
+> (Functional Requirements + Business Rules + BDD User Stories) and how well it must
+> operate (Non-Functional Requirements), linked end-to-end through the Traceability Matrix (RTM).
+
+---
 
 ## Why this section exists
 
-Requirements are the contract between the team and the client/stakeholder.
+Requirements are the contract between the development team, the SENA instructor, and stakeholders.
 Without them:
-- There is no way to verify whether the system is complete
-- Scope changes have no baseline for comparison
-- Tests have no success criterion
+- There is no objective way to verify completeness
+- Scope changes have no baseline for impact analysis
+- Automated tests have no acceptance oracle
 
 ---
 
-## Types of requirements
+## What is here
 
-### Functional (FR)
-Describe **what the system does**: functions, behaviors, data transformations.
-*Example: "The system must allow the user to recover their password via email."*
-
-### Non-functional (NFR)
-Describe **how it does it**: quality, performance, availability, security.
-*Example: "The system must respond in less than 200ms for 95% of requests."*
-
-NFRs are usually harder to meet than FRs and are ignored more frequently. **They are equally important.**
-
----
-
-## What is here and how to fill it in
-
-### `functional.md` ⭐
-List of all the system's functional requirements (FR01–FR19).
-**Status:** ✅ Completed (19 FRs extracted from `01-context/scope.md`, mapped to the 9 bounded contexts)
-
-**Format:**
-```markdown
-| ID | Module | Description | Source (HU) | Priority |
-|----|--------|-------------|------------|---------|
-| FR01 | iam-service, people-service | Authenticate a user with role-based access and register a Person linked to a unit | HU-IAM-001, HU-PPL-001 | High |
-```
-
-### `non-functional.md` ⭐
-Quality, performance, and technical constraint requirements (NFR-001 to NFR-008).
-**Status:** ✅ Completed (all 8 NFRs measurable, validated in staging pipeline, aligned to formative-project scope)
-
-**Format:**
-```markdown
-## Performance
-| ID | Requirement | Metric | How to verify |
-|----|------------|--------|--------------|
-| NFR-001 | Response time | P95 < 300ms under 50 RPS | Load test with K6 in staging |
-
-## Availability
-| ID | Requirement | Metric | How to verify |
-|----|------------|--------|--------------|
-| NFR-002 | Uptime SLO | 99.9% monthly | Production monitoring (TBD) |
-
-## Security
-| ID | Requirement | Description |
-|----|------------|-------------|
-| NFR-004 | Authentication | JWT with 1-hour expiration; Ley 1581 de 2012 compliance |
-```
-
-### `user-stories.md`
-Formalized user stories (HU-IAM-001 through HU-REP-001, cut into 3 sprints).
-**Status:** ✅ Completed (19 HUs with As/I want/So that + Gherkin acceptance criteria + DoD)
-
-### `traceability-matrix.md` ⭐
-Table that connects: FR → HU → Test case → Service.
-**Status:** ✅ Completed (maps 19 FRs to 19 HUs, 8 NFRs to validation tools, identifies 3 gaps pending confirmation)
-
-**Format:**
-```markdown
-| FR ID | FR Description | HU(s) | Tests that verify it | Service | Status |
-|-------|---------------|-------|---------------------|---------|--------|
-| FR01 | Authenticate a user with role-based access... | HU-IAM-001, HU-PPL-001 | AuthenticationServiceTest.java, PersonServiceTest.java | iam-service, people-service | 🔴 Pending |
-```
-
-### `_template-hu.md`
-Template for a complete User Story with acceptance criteria, DoD, story points, and metadata.
-**Status:** ✅ Intact (reference template; do not modify without team consensus)
-
-### `_template-nfr.md`
-Template for specifying non-functional requirements with their verification metrics.
-**Status:** ⚠️ Missing (referenced in this README but does not exist yet; low priority — `non-functional.md` already carries the full specifications)
+| File | Priority | Status | Contents |
+|------|----------|--------|----------|
+| `functional.md` | ⭐ | ✅ Complete | Canonical catalog of **22 Functional Requirements (`FR01`–`FR22`)** with MoSCoW prioritization, **16 Business Rules (`BR-01`–`BR-16`)**, legacy transition strategy, and MVP exclusions |
+| `fr-to-service-mapping.md` | ⭐ | ✅ Complete | Canonical `FR01`–`FR22` → HU → Bounded Context → Microservice → Owner mapping and Cut 1 / Cut 2 / Cut 3 delivery dependencies |
+| `user-stories.md` | ⭐ | ✅ Complete | **22 BDD User Stories (`HU-IAM-001` through `HU-REP-001`)** organized across 3 Cuts (7 + 11 + 4), each with happy-path and negative/edge Gherkin scenarios, DoD, story points, and real owners |
+| `non-functional.md` | ⭐ | ✅ Complete | **9 measurable NFRs (`NFR-001`–`NFR-009`)** aligned to Java 25 + Spring Boot 4.0.8 + MySQL 8 + RabbitMQ, including WCAG 2.1 AA usability/accessibility (`NFR-009`) and ArchUnit fitness targets |
+| `traceability-matrix.md` | ⭐ | ✅ Complete | End-to-end RTM linking **22 FRs**, **22 HUs**, **9 NFRs**, Vision KRs, test classes, services, real implementation status, and active gaps |
+| `_template-hu.md` | — | ✅ Intact | Reference User Story template (do not modify without team consensus) |
 
 ---
 
 ## Correlations with other sections
 
-| This section feeds... | Why |
-|-----------------------|-----|
-| `02-domain/` | FRs trace back to domain entities and events in entities-and-rules.md; NFRs inform infrastructure constraints |
-| `03-product/` | Requirements come from vision.md and problem-framing.md (problem statement); vision also defines the 3 sprints where each HU lands |
-| `05-architecture/decisions/` | NFRs (especially performance, availability, scalability) drive architectural decisions in ADRs; FR distribution across services comes from domain-map.md |
-| `09-microservices/` | Each service's responsibility is defined by the FRs assigned to it in traceability-matrix.md |
-| `11-quality/testing-strategy.md` | Each FR must have at least one test case; traceability-matrix.md shows which tests cover which FRs/NFRs |
-| `07-api/` | Functional FRs that span services → API contracts (endpoints, request/response shapes) |
-| `10-devops/` | NFRs (especially performance, availability, observability) define the CI/CD pipeline requirements and monitoring strategy |
+| Section | Relationship |
+|---------|--------------|
+| `01-context/` | `scope.md` defines boundaries; `glossary.md` defines Ubiquitous Language used in `FR01`–`FR22` and `BR-01`–`BR-16` |
+| `02-domain/` | Every `BR-*` maps directly to entity/aggregate invariants in `entities-and-rules.md` and events in `domain-events.md` |
+| `03-product/` | `vision.md` defines `KR1`–`KR4` and delivery horizons (`H1`–`H3`) traced in `traceability-matrix.md` |
+| `05-architecture/` | `NFR-001`–`NFR-009` drive `ADR-003`–`ADR-006` (microservices, MySQL 8 per service, RabbitMQ, JWT + API Gateway) |
+| `06-data/` | `models.md` enforces `BR-*` invariants via MySQL 8 `CHECK`, `UNIQUE`, `FK`, `outbox`, and `processed_events` |
+| `07-api/` | `FR01`–`FR22` define the OpenAPI 3.0.3 endpoints and payloads per microservice |
+| `11-quality/` | `traceability-matrix.md` defines the mandatory test classes, BDD scenarios, ≥ 80% coverage, and ArchUnit gates |
 
 ---
 
-## Common mistakes to avoid
+## Requirements quality rules
 
-❌ **"The system must be fast"** → Not measurable. Better: "p95 < 200ms"
-
-❌ **"The system must be secure"** → Not verifiable. Better: "Authentication with JWT, tokens expire in 1h"
-
-❌ Writing requirements that describe the solution instead of the problem.
-
-✅ A good requirement is: **specific, measurable, achievable, relevant, and verifiable**.
+- ❌ *"The system must be fast"* → Unverifiable. ✅ *"P95 latency < 300 ms under 50 RPS (`NFR-001`)."*
+- ❌ *"The system must work on phones"* → Unverifiable. ✅ *"WCAG 2.1 AA via `axe-core` and responsive at 360px (`NFR-009`)."*
+- ✅ Every requirement must be **specific, measurable, achievable, relevant, and verifiable (SMART)**, written in English (`ADR-001`), and synchronized with `06-data/models.md`.
 
 ---
 
-## Questions this section must answer
+## Questions this section answers
 
-- **What must the system do for each type of user?** ✅ Answered in `user-stories.md` (HU-IAM-001 → HU-REP-001, one per role/feature)
-- **With what speed, availability, and security?** ✅ Answered in `non-functional.md` (NFR-001 → NFR-008, with metrics and validation strategy)
-- **Which requirement originates each test case?** ✅ Answered in `traceability-matrix.md` (FR/NFR → Test class names)
-- **Are all requirements covered by tests?** ⚠️ In progress — test implementation pending (CI/CD pipeline in `10-devops/` not yet defined)
-- **Who is responsible for each FR?** ✅ Answered by service ownership in traceability-matrix.md (each FR assigned to one or more services)
-- **Are there any gaps between specification and implementation?** ✅ Identified in traceability-matrix.md "Identified gaps" section (3 items pending confirmation)
+- **What must the system do for each of the 5 roles?** → `functional.md` (`FR01`–`FR22`, `BR-01`–`BR-16`) and `user-stories.md` (22 BDD HUs).
+- **Under what speed, security, accessibility, and resilience metrics?** → `non-functional.md` (`NFR-001`–`NFR-009`).
+- **Which microservice and teammate owns each FR?** → `fr-to-service-mapping.md` and `traceability-matrix.md`.
+- **Which requirements are already in development vs. pending?** → `traceability-matrix.md` (live status synced to Phase 1 GitHub repos and identified gaps).

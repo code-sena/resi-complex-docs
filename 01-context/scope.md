@@ -14,14 +14,14 @@ What the system **DOES build and maintain**:
 
 | # | Feature | Description | Responsible service |
 |---|---------|-------------|---------------------|
-| 1 | Authentication & role-based access | Login and session management for the 5 authentication roles (FR01) | iam-service |
+| 1 | Authentication, staff provisioning & RBAC | Login, 1h JWT + 7d refresh rotation, and admin account provisioning for the 5 authentication roles (FR01, FR20) | iam-service |
 | 2 | Units & commercial establishments management | Register/edit/delete units, classify as residential or commercial, and register establishment data (name, type, hours) when commercial (FR02–FR04) | units-service |
-| 3 | People management | Manage Persons (Residents and Commercial Owners/Tenants) linked to their units (FR01) | people-service |
+| 3 | People & unit occupancy management | Manage Persons (Residents and Commercial Owners/Tenants) and unit occupancy lifecycle (FR21) | people-service |
 | 4 | Maintenance requests | Create requests, assign them, track status through their lifecycle, notify status changes (FR05–FR07) | maintenance-service |
 | 5 | Differentiated administration fees | Monthly fee generation with rates that differ by unit type, and fee status lookup (FR08–FR10) | billing-service |
 | 6 | Segmented announcements | Publish announcements to all units, only residential, or only commercial (FR11) | communications-service |
-| 7 | Access control | Log visitor and vehicle entry/exit, distinguishing personal visitors from commercial clients (FR12–FR14) | access-control-service |
-| 8 | Correspondence | Log incoming packages/mail per unit and let residents check pending correspondence (FR15–FR16) | access-control-service *(tentative — not explicit in the initial service catalog; pending confirmation with the instructor)* |
+| 7 | Access control & visitor pre-authorizations | Log visitor/vehicle entry-exit and manage resident visitor pre-authorizations (FR12–FR14, FR22) | access-control-service |
+| 8 | Correspondence | Log incoming packages/mail per unit with 4-digit pickup PIN and let residents check pending correspondence (FR15–FR16) | access-control-service |
 | 9 | Extraordinary expense approval | Administrator creates expense proposals; Board approves or rejects, with permanent history (FR17–FR18) | finance-approval-service |
 | 10 | Reports | Requests by status and pending fee portfolio (FR19) | reports-service |
 
@@ -55,7 +55,7 @@ What the system **does NOT build** in this version and why:
 | 5 | Common-area reservations | Not part of the defined entities/FR; appears in several competitor platforms | Yes — future line, no date set |
 | 6 | AI over documents | Only 1 of 4 competitors (Edifia) offers it; insufficient market evidence to adopt now | Yes — to monitor, no date set |
 | 7 | External channel (WhatsApp) | Not part of the defined FR; communication stays inside the system (in-app / Announcements module) | Pending — not evaluated |
-| 8 | Visitor pre-authorization / QR | Data model is being prepared to support it later, but not implemented in this delivery | Yes — future line, no date set |
+| 8 | QR-code / barcode pass scanning for pre-authorizations | Digital pre-authorization logging (`FR22`) is included in Sprint 4; automated QR scanning hardware/camera flows remain deferred | Yes — future line, no date set |
 
 ### What another system / team handles (and why not us)
 
@@ -74,7 +74,7 @@ What the system **does NOT build** in this version and why:
 | 1 | A unit only needs two types: residential or commercial | Adding more unit types would require reworking the fee model and the announcement segmentation logic |
 | 2 | The system serves a single residential complex at a time (not a multi-complex SaaS) | Multi-tenancy would require significant changes to the data model and authorization design |
 | 3 | Initial data volume is small (single complex scale: units, residents, and daily visits) | The database and query strategy might need to change for a multi-complex or high-volume scenario |
-| 4 | Users have access to a smartphone or computer with a modern browser (per NFR03) | The UX/UI design and the frontend technology choice might need to change |
+| 4 | Users have access to a smartphone or computer with a modern browser (per NFR-009) | The UX/UI design and the frontend technology choice might need to change |
 | 5 | The instructor confirms the proposed microservices catalog without major changes | The service boundaries in this document (and the "Responsible service" column above) would need to be revised |
 
 ---
@@ -85,9 +85,9 @@ What the system **does NOT build** in this version and why:
 |------|-------------|
 | **Time** | Tied to the SENA ADSO academic calendar; specific delivery dates pending confirmation by the team |
 | **Budget** | N/A — academic formative project, no monetary budget; constrained by student hours only |
-| **Technology** | Must use the confirmed stack: Java + Spring Boot (microservices, layered architecture), MySQL, Spring Security + BCrypt |
+| **Technology** | Must use the confirmed stack: Java 25 + Spring Boot 4.0.8 (microservices, hexagonal architecture), MySQL 8 (Database per Service), RabbitMQ, Flyway, Spring Security + BCrypt |
 | **Regulatory** | Must comply with Ley 1581 de 2012 (Colombian personal data protection law) |
-| **Team** | Pending — exact number of developers assigned to implementation not yet confirmed |
+| **Team** | 4 SENA ADSO 3239188 developers: Fabián Trujillo (Tech Lead), María Alexandra Garzón, Félix Murcia, and Julián Losada |
 
 ---
 
