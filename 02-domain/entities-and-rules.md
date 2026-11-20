@@ -83,12 +83,14 @@ They live in the Aggregate Root and are validated on every operation.
 |-----------|------|-------------|---------|-------|
 | id | UUID | Unique identifier | Yes | Auto-generated on creation |
 | personId | UUID | Who reported the request | Yes | Must exist in People Management |
-| unitId | UUID | Where the issue occurred | Yes | Must exist in Units Management |
+| unitId | UUID | Where the issue occurred | No | Required if locationType == PRIVATE_UNIT |
+| locationType | enum | PRIVATE_UNIT / COMMON_AREA | Yes | Defaults to PRIVATE_UNIT |
+| commonAreaName | string | Name of the common area (e.g. Elevator, Pool) | No | Required if locationType == COMMON_AREA |
 | type | string | Damage category (plumbing, electrical, etc.) | Yes | Controlled list, defined in `06-data/` |
 | description | string | Report details | Yes | Max. 500 characters |
 | priority | enum | LOW / MEDIUM / HIGH / URGENT | Yes | Set by the Person on creation |
 | assignedTo | UUID | Assigned maintenance staff member | No | Assigned after creation |
-| status | enum | PENDING / ASSIGNED / IN_PROGRESS / RESOLVED | Yes | See state machine |
+| status | enum | PENDING / ASSIGNED / IN_PROGRESS / WORK_COMPLETED / RESOLVED | Yes | See state machine |
 | evidencePhotoUrls | string[] | Photos attached to the request | No | **Future candidate**, not required for the current delivery — flagged in `03-product/resi-complex-tech-watch.md` as a low-cost enhancement seen in competitor TUCO 360; confirm with the team before implementing |
 | createdAt | DateTime | Creation date | Yes | Immutable, set on creation |
 | updatedAt | DateTime | Last modification | Yes | Updated automatically |
@@ -108,18 +110,19 @@ PENDING ──(assign)──▶ ASSIGNED ──(start)──▶ IN_PROGRESS ─�
 |-------|-------------|---------------------|
 | PENDING | Just created, no staff assigned yet | → ASSIGNED |
 | ASSIGNED | Has assigned maintenance staff, not started yet | → IN_PROGRESS |
-| IN_PROGRESS | Staff is actively working on it | → RESOLVED |
+| IN_PROGRESS | Staff is actively working on it | → WORK_COMPLETED |
+| WORK_COMPLETED | Work performed; awaiting resident approval | → RESOLVED, → IN_PROGRESS |
 | RESOLVED | Terminal — work finished | Terminal state |
 
 **Invariants (Business rules that MUST ALWAYS hold):**
 
 ```
-INV-001: Staff cannot be assigned to a request without a valid unit or person
+INV-001: A request requires personId and either unitId (if PRIVATE_UNIT) or commonAreaName (if COMMON_AREA)
   - Rule: unitId and personId must exist before the request is created
   - Violation: the request is not saved if either is missing or invalid
   - Implementation: validated in the constructor / factory method
 
-INV-002: Status can only move forward, never backward
+INV-002: WORK_COMPLETED requires resident verification before RESOLVED; rejection returns to IN_PROGRESS
   - Rule: PENDING → ASSIGNED → IN_PROGRESS → RESOLVED is the only valid sequence
   - Violation: DomainException if, e.g., an attempt is made to move from RESOLVED to IN_PROGRESS
   - Implementation: the status-change method validates the allowed transition
@@ -180,9 +183,11 @@ class MaintenanceRequest {
 | unitId | UUID | Billed unit | Yes | Must exist in Units Management |
 | period | string | Fee month/year (e.g. `2026-09`) | Yes | Format `YYYY-MM` |
 | unitTypeAtGeneration | enum | RESIDENTIAL / COMMERCIAL | Yes | Copied from the unit's type on generation; not recalculated afterward |
-| amount | Money (VO) | Amount due according to the applicable rate | Yes | Must be > 0 |
+| totalAmount | Money (VO) | Total fee due according to the rate | Yes | Must be > 0 |
+| paidAmount | Money (VO) | Total amount paid to date | Yes | Starts at 0, <= totalAmount |
+| balance | Money (VO) | Remaining unpaid balance (total - paid) | Yes | Calculated |
 | dueDate | Date | Deadline without a surcharge | Yes | After the generation date |
-| status | enum | PENDING / PAID / OVERDUE | Yes | See state machine |
+| status | enum | PENDING / PARTIALLY_PAID / PAID / OVERDUE | Yes | See state machine |
 | createdAt | DateTime | Creation date | Yes | Immutable |
 | updatedAt | DateTime | Last modification | Yes | Automatic |
 
@@ -199,8 +204,9 @@ PENDING ──(register payment)──▶ PAID
 
 | State | Description | Allowed transitions |
 |-------|-------------|---------------------|
-| PENDING | Generated, within the deadline | → PAID, → OVERDUE |
-| OVERDUE | Past the due date without payment | → PAID |
+| PENDING | Generated, within the deadline | → PARTIALLY_PAID, → PAID, → OVERDUE |
+| PARTIALLY_PAID | Partial payment recorded, balance remains | → PAID, → OVERDUE |
+| OVERDUE | Past the due date with outstanding balance | → PARTIALLY_PAID, → PAID |
 | PAID | Terminal — payment recorded | Terminal state |
 
 **Invariants (Business rules that MUST ALWAYS hold):**
@@ -217,10 +223,22 @@ INV-002: The applied rate depends on the unit type AT THE MOMENT the fee is gene
   - Violation: modifying unitTypeAtGeneration after the fee is created throws an exception
   - Implementation: the field is read-only after the constructor
 
-INV-003: A PAID fee cannot revert to PENDING or OVERDUE
+INV-003: A PAID fee cannot revert to PENDING, PARTIALLY_PAID or OVERDUE
+
+INV-004: Dual visibility: Both registered OWNER and active TENANT of a unit can view fee statements (fees:read:own)
+  - Rule: either party may consult debts and submit payment vouchers for the unit
+  - Violation: non-occupants receive 403 Forbidden
+  - Implementation: verified at the service layer via unit_occupancies
+
+INV-005: Payments reduce the remaining balance; when balance reaches 0, the status transitions to PAID
+  - Rule: paidAmount <= totalAmount; balance = totalAmount - paidAmount
+  - Violation: overpayment or negative amounts throw DomainException
+  - Implementation: validated in the payment registration domain service
   - Rule: PAID is a terminal state
-  - Violation: DomainException if a revert is attempted
-  - Implementation: the status-change method validates the current status
+
+
+
+
 ```
 
 **Code example (TypeScript/Java):**
@@ -272,6 +290,8 @@ class AdministrationFee {
 | status | enum | PENDING / DELIVERED | Yes | See state machine |
 | receivedAt | DateTime | When it was logged | Yes | Immutable, set on creation |
 | deliveredAt | DateTime | When it was picked up | No | Set only on delivery |
+| pickupPin | string | 4-digit security code for package handover | Yes | Auto-generated, visible only to unit occupants |
+| deliveredTo | UUID | Person who picked up the package | No | Stamped on delivery |
 
 **Ownership-level authorization:** a Person may only read correspondence for their own
 unit (`correspondence:read:own`); only a Security Guard may create entries
@@ -298,8 +318,19 @@ INV-001: Correspondence must reference a valid, existing unit
 
 INV-002: DELIVERED is a terminal state
   - Rule: once marked DELIVERED, it cannot revert to PENDING
-  - Violation: DomainException if a revert is attempted
-  - Implementation: the status-change method validates the current status
+
+
+
+
+INV-003: Delivery requires matching pickupPin for non-repudiation
+  - Rule: Security Guard must provide the recipient's 4-digit PIN to transition to DELIVERED
+  - Violation: DomainException if PIN does not match
+  - Implementation: validated in the markDelivered method
+
+
+
+
+
 ```
 
 **Code example (TypeScript/Java):**
@@ -397,6 +428,22 @@ class Money {
 
 ```typescript
 enum UnitType { RESIDENTIAL = 'RESIDENTIAL', COMMERCIAL = 'COMMERCIAL' }
+```
+
+---
+
+### Value Object: AnnouncementPriority
+
+**Description:** Defines the urgency level of an announcement (`INFORMATIVE`, `IMPORTANT`, `EMERGENCY`). When set to `EMERGENCY`, triggers real-time external broadcast (email/push) to all active occupants.
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| value | enum | `INFORMATIVE` \| `IMPORTANT` \| `EMERGENCY` |
+
+```typescript
+enum AnnouncementPriority { INFORMATIVE = 'INFORMATIVE', IMPORTANT = 'IMPORTANT', EMERGENCY = 'EMERGENCY' }
 ```
 
 ---
@@ -505,11 +552,11 @@ AGGR-INV-002: assignedTo can only be set once the status leaves PENDING
 **Aggregate Root:** Visit
 
 **Internal entities:**
-- None — a Visit is a simple, single-entity aggregate.
+- `VisitorPreAuthorization` — created by a unit occupant in advance, permitting verified single-click check-in at the guard desk.
 
 **Value Objects:**
 - `VisitorVehicle` (plate, vehicle type — optional, embedded)
-- `VisitorType` (enum: PERSONAL_VISITOR / COMMERCIAL_CLIENT)
+- `VisitorType` (enum: PERSONAL_VISITOR / SERVICE_PROVIDER)
 
 **Aggregate invariants:**
 
@@ -517,6 +564,12 @@ AGGR-INV-002: assignedTo can only be set once the status leaves PENDING
 AGGR-INV-001: unitId must reference an existing Unit
 AGGR-INV-002: A Visit's vehicle, if present, must have both plate and vehicleType set
               (no partial vehicle data)
+AGGR-INV-003: Commercial units face outward to the public street; their customer foot traffic
+              enters directly from outside and is exempt from gate logging. Visit records
+              strictly apply to entries into the interior residential perimeter.
+AGGR-INV-004: When a pre-authorized visitor arrives, the Security Guard validates the matching
+              VisitorPreAuthorization; confirming entry marks it USED and registers the Visit
+              without requiring real-time intercom calls.
 ```
 
 **Why do these objects form an aggregate?**
@@ -542,7 +595,16 @@ AGGR-INV-002: A Visit's vehicle, if present, must have both plate and vehicleTyp
 
 ```
 AGGR-INV-001: unitId must reference an existing Unit
-AGGR-INV-002: DELIVERED is a terminal state (see entity INV-002)
+AGGR-INV-002: DELIVERED is a terminal state
+  - Rule: once marked DELIVERED, it cannot revert to PENDING
+
+
+
+
+INV-003: Delivery requires matching pickupPin for non-repudiation
+  - Rule: Security Guard must provide the recipient's 4-digit PIN to transition to DELIVERED
+  - Violation: DomainException if PIN does not match
+  - Implementation: validated in the markDelivered method (see entity INV-002)
 ```
 
 **Why is this a separate aggregate from Visit, even in the same context?**
@@ -573,6 +635,11 @@ AGGR-INV-001: A proposal in APPROVED or REJECTED (terminal) status does not acce
 AGGR-INV-002: The Approval history is never deleted, only appended (append-only) —
               this is what guarantees the traceability required by FR18
 AGGR-INV-003: requestedAmount must be greater than 0
+AGGR-INV-004: Automatic quorum decision: A proposal automatically transitions to APPROVED
+              when positive approvals reach majority (50% + 1 of active Board members).
+              If negative votes reach 50% or the voting deadline expires without majority,
+              it transitions to REJECTED.
+AGGR-INV-005: votingDeadline must be set on creation and cannot be in the past.
 ```
 
 **Why do these objects form an aggregate?**
@@ -584,6 +651,30 @@ AGGR-INV-003: requestedAmount must be greater than 0
 
 ---
 
+### Aggregate: Person
+
+**Aggregate Root:** Person
+
+**Internal entities:**
+- `UnitOccupancy` — represents the formal occupancy or ownership link between a Person and a specific Unit.
+
+**Value Objects:**
+- `OccupancyType` (enum: `OWNER` / `TENANT`)
+- `OccupancyStatus` (enum: `ACTIVE` / `INACTIVE`)
+
+**Aggregate invariants:**
+
+```
+AGGR-INV-001: Only an occupant with an ACTIVE occupancy has ownership-level authorization to unit-scoped data and operations (correspondence pickup, visitor authorization, maintenance requests).
+AGGR-INV-002: Revoking a lease marks the occupancy as INACTIVE with an end_date; it never deletes the Person, their User account, or their historical audit trail.
+AGGR-INV-003: Physical units never hold authentication credentials. Credentials strictly belong to the individual Person in IAM.
+```
+
+**Why do these objects form an aggregate?**
+> A Person can own or rent multiple units across time. Modeling occupancy as an entity inside the Person domain boundary ensures that ending a lease does not destroy past audit logs (maintenance tickets, payments, visits) and eliminates credential-sharing risks.
+
+---
+
 ## Summary table of tactical building blocks
 
 | Name | Type | Bounded Context | Aggregate Root? |
@@ -591,6 +682,7 @@ AGGR-INV-003: requestedAmount must be greater than 0
 | Unit | Entity | Units Management | Yes |
 | Commercial Establishment | Entity | Units Management | No (inside Unit) |
 | Person | Entity | People Management | Yes |
+| Unit Occupancy | Entity | People Management | No (inside Person) |
 | Maintenance Request | Entity | Maintenance | Yes |
 | Administration Fee | Entity | Billing | Yes |
 | Announcement | Entity | Communications | Yes |
