@@ -3,38 +3,46 @@ info:
   title: Auth Service API
   version: 1.0.0
   description: |
-    Servicio de autenticación: registro, login, renovación de tokens y gestión de sesiones.
+    Servicio de autenticación y gestión de usuarios (IAM / FR20): registro, login, renovación de tokens,
+    gestión de sesiones, endpoints administrativos de usuarios y consulta/asignación de roles.
 
     ## Flujo de autenticación
-    1. `POST /auth/register` — crear cuenta
+    1. `POST /auth/register` — crear cuenta pública (si está habilitado)
     2. `POST /auth/login` — obtener access_token + refresh_token
-    3. Usar `access_token` en el header `Authorization: Bearer` para todos los demás endpoints
+    3. Usar `access_token` en el header `Authorization: Bearer <token>` para todos los demás endpoints
     4. Cuando el access_token expire (1h): `POST /auth/refresh` con el refresh_token
     5. Para cerrar sesión: `POST /auth/logout`
 
     ## Tokens
-    - **access_token**: JWT RS256, expira en 1 hora. Incluye userId, email, roles, permissions.
+    - **access_token**: JWT RS256, expira en 1 hora. Incluye sub (userId), email, roles, permissions.
     - **refresh_token**: Opaque token (UUID), expira en 7 días. Solo válido una vez (rotación).
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:8081
+  - url: http://127.0.0.1:8081
     description: Local development
   - url: https://api.dev.{domain}/api/v1/auth
     description: Development
     variables:
       domain:
-        default: example.com
+        default: resicomplex.local
   - url: https://api.{domain}/api/v1/auth
     description: Production
     variables:
       domain:
-        default: example.com
+        default: resicomplex.com
 
-security: []  # La mayoría de estos endpoints son públicos
+security: []  # Por defecto endpoints públicos; los endpoints protegidos declaran su propia seguridad
 
 tags:
   - name: Auth
     description: Registro, login y gestión de sesiones
+  - name: Users
+    description: Endpoints de administración de usuarios (FR20)
+  - name: Roles
+    description: Consulta y gestión de roles y permisos del sistema (FR20)
   - name: Keys
     description: Claves públicas para verificación de tokens
   - name: Health
@@ -44,6 +52,8 @@ paths:
   /health:
     get:
       summary: Health check
+      description: Verifica el estado del servicio y conectividad con la base de datos y cache.
+      operationId: checkHealth
       tags: [Health]
       security: []
       responses:
@@ -67,10 +77,22 @@ paths:
                 status: ok
                 db: connected
                 redis: connected
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          description: Servicio no disponible o base de datos desconectada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /register:
     post:
       summary: Registrar un nuevo usuario
+      description: |
+        Crea una cuenta inicial de usuario en el sistema.
+
+        **Roles permitidos:** Público (sin autenticación requerida).
       operationId: register
       tags: [Auth]
       requestBody:
@@ -80,7 +102,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
             example:
-              email: usuario@example.com
+              email: usuario@resicomplex.com
               password: "SecurePass123!"
               name: "María García"
       responses:
@@ -105,6 +127,10 @@ paths:
   /login:
     post:
       summary: Autenticar un usuario
+      description: |
+        Valida credenciales (email y contraseña) y retorna los tokens de acceso y refresco.
+
+        **Roles permitidos:** Público (sin autenticación requerida).
       operationId: login
       tags: [Auth]
       requestBody:
@@ -114,7 +140,7 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
             example:
-              email: usuario@example.com
+              email: usuario@resicomplex.com
               password: "SecurePass123!"
       responses:
         '200':
@@ -123,6 +149,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           description: Credenciales inválidas
           content:
@@ -142,6 +170,10 @@ paths:
   /refresh:
     post:
       summary: Renovar el access token
+      description: |
+        Genera un nuevo access token utilizando un refresh token válido (rotación obligatoria).
+
+        **Roles permitidos:** Público con refresh token válido.
       operationId: refreshToken
       tags: [Auth]
       requestBody:
@@ -162,6 +194,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           description: Refresh token inválido, expirado o ya usado
           content:
@@ -172,6 +206,10 @@ paths:
   /logout:
     post:
       summary: Cerrar sesión
+      description: |
+        Invalida la sesión activa y revoca el refresh token indicado.
+
+        **Roles permitidos:** Cualquier usuario autenticado (`ADMIN`, `BOARD_MEMBER`, `RESIDENT`, `MERCHANT`, `SECURITY_GUARD`, `MAINTENANCE_STAFF`).
       operationId: logout
       tags: [Auth]
       security:
@@ -195,6 +233,280 @@ paths:
           description: Sesión cerrada exitosamente
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /users:
+    get:
+      summary: Listar usuarios
+      description: |
+        Obtiene una lista paginada de usuarios registrados en el sistema, con filtros opcionales por rol, estado y búsqueda general.
+
+        **Roles permitidos:** `ADMIN`
+      operationId: getUsers
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/PageParam'
+        - $ref: './_shared.yaml#/components/parameters/LimitParam'
+        - name: role
+          in: query
+          description: Filtrar por rol de usuario
+          required: false
+          schema:
+            $ref: '#/components/schemas/Role'
+        - name: status
+          in: query
+          description: Filtrar por estado del usuario
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+            example: ACTIVE
+        - name: search
+          in: query
+          description: Término de búsqueda por nombre o correo electrónico
+          required: false
+          schema:
+            type: string
+            example: maria
+      responses:
+        '200':
+          description: Lista paginada de usuarios obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserResponse'
+                  meta:
+                    $ref: './_shared.yaml#/components/schemas/PaginatedMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      summary: Crear nuevo usuario
+      description: |
+        Crea un nuevo usuario administrativo o del sistema, asignándole roles y datos iniciales de acceso.
+
+        **Roles permitidos:** `ADMIN`
+      operationId: createUser
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            example:
+              email: nuevo.usuario@resicomplex.com
+              password: "SecurePassword123!"
+              name: "Carlos Mario Ruiz"
+              roles: ["RESIDENT"]
+              personId: "550e8400-e29b-41d4-a716-446655440001"
+      responses:
+        '201':
+          description: Usuario creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: El email ya se encuentra registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: EMAIL_ALREADY_EXISTS
+                message: El correo electrónico ya se encuentra registrado
+
+  /users/{userId}:
+    get:
+      summary: Obtener detalle de usuario
+      description: |
+        Obtiene los detalles completos de un usuario específico a partir de su ID único (UUID).
+
+        **Roles permitidos:** `ADMIN`
+      operationId: getUserById
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Identificador único del usuario (UUID)
+          schema:
+            $ref: './_shared.yaml#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Detalles del usuario recuperados exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Actualizar usuario parcialmente
+      description: |
+        Actualiza campos específicos del usuario (nombre, estado de activación o personId vinculado).
+
+        **Roles permitidos:** `ADMIN`
+      operationId: updateUser
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Identificador único del usuario (UUID)
+          schema:
+            $ref: './_shared.yaml#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            example:
+              name: "Carlos Mario Ruiz Modificado"
+              status: "ACTIVE"
+      responses:
+        '200':
+          description: Usuario actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Eliminar usuario
+      description: |
+        Realiza un borrado lógico (soft delete) del usuario, desactivando su cuenta y revocando el acceso.
+
+        **Roles permitidos:** `ADMIN`
+      operationId: deleteUser
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Identificador único del usuario (UUID)
+          schema:
+            $ref: './_shared.yaml#/components/schemas/UUID'
+      responses:
+        '204':
+          description: Usuario eliminado (desactivado) exitosamente. Sin contenido en la respuesta.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{userId}/roles:
+    put:
+      summary: Actualizar roles de un usuario
+      description: |
+        Reemplaza la lista completa de roles asignados al usuario indicado.
+
+        **Roles permitidos:** `ADMIN`
+      operationId: updateUserRoles
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Identificador único del usuario (UUID)
+          schema:
+            $ref: './_shared.yaml#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRolesRequest'
+            example:
+              roles: ["BOARD_MEMBER", "RESIDENT"]
+      responses:
+        '200':
+          description: Roles del usuario actualizados exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /roles:
+    get:
+      summary: Listar roles del sistema
+      description: |
+        Obtiene el catálogo de roles disponibles en el sistema con su nombre descriptivo, explicación y permisos asociados por defecto.
+
+        **Roles permitidos:** `ADMIN`
+      operationId: getRoles
+      tags: [Roles]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de roles recuperada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoleDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /jwks:
     get:
@@ -216,9 +528,36 @@ paths:
                     items:
                       type: object
                       description: JWK (RFC 7517)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          description: Error interno al obtener claves criptográficas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
+    Role:
+      type: string
+      description: |
+        Roles del sistema resi-complex:
+        * `ADMIN`: Administrador del complejo residencial con control total operativo
+        * `BOARD_MEMBER`: Miembro del Consejo de Administración (fiscalización financiera y aprobación de gastos)
+        * `RESIDENT`: Residente de unidad habitacional
+        * `MERCHANT`: Comerciante / Arrendatario de unidad comercial
+        * `SECURITY_GUARD`: Personal de vigilancia y recepción en portería
+        * `MAINTENANCE_STAFF`: Personal técnico de mantenimiento
+      enum:
+        - ADMIN
+        - BOARD_MEMBER
+        - RESIDENT
+        - MERCHANT
+        - SECURITY_GUARD
+        - MAINTENANCE_STAFF
+      example: ADMIN
+
     RegisterRequest:
       type: object
       required: [email, password, name]
@@ -227,15 +566,18 @@ components:
           type: string
           format: email
           maxLength: 255
+          example: maria.garcia@resicomplex.com
         password:
           type: string
           minLength: 8
           maxLength: 100
-          description: Mínimo 8 caracteres, una mayúscula, un número
+          description: Mínimo 8 caracteres, al menos una mayúscula y un número
+          example: "SecurePass123!"
         name:
           type: string
           minLength: 1
           maxLength: 100
+          example: "María García"
 
     LoginRequest:
       type: object
@@ -244,8 +586,10 @@ components:
         email:
           type: string
           format: email
+          example: usuario@resicomplex.com
         password:
           type: string
+          example: "SecurePass123!"
 
     AuthResponse:
       type: object
@@ -273,36 +617,166 @@ components:
         email:
           type: string
           format: email
+          example: usuario@resicomplex.com
         name:
           type: string
+          example: "María García"
         roles:
           type: array
           items:
-            type: string
-            enum: [ADMIN, USER, VIEWER]
+            $ref: '#/components/schemas/Role'
+          example: [RESIDENT]
         permissions:
           type: array
           items:
             type: string
             description: Formato "[recurso]:[accion]"
-          example: ["appointment:read", "appointment:write"]
+          example: ["requests:create", "fees:read:own"]
+
+    UserResponse:
+      type: object
+      required: [id, email, name, roles, status, createdAt, updatedAt]
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        email:
+          type: string
+          format: email
+          example: usuario@resicomplex.com
+        name:
+          type: string
+          example: "Carlos Mario Ruiz"
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+          example: [ADMIN]
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["units:*", "people:*", "fees:*", "requests:read"]
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          example: ACTIVE
+        personId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Referencia lógica a people-service (NULL para personal de staff/administración)
+          example: 550e8400-e29b-41d4-a716-446655440001
+        createdAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2024-01-15T10:30:00Z'
+
+    CreateUserRequest:
+      type: object
+      required: [email, password, name, roles]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: nuevo.usuario@resicomplex.com
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+          description: Mínimo 8 caracteres, al menos una mayúscula y un número
+          example: "SecurePassword123!"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Carlos Mario Ruiz"
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+          minItems: 1
+          example: [RESIDENT]
+        personId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID de persona asociada en people-service (opcional)
+          example: 550e8400-e29b-41d4-a716-446655440001
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Carlos Mario Ruiz Modificado"
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          example: ACTIVE
+        personId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Actualización de referencia a people-service
+          example: 550e8400-e29b-41d4-a716-446655440001
+
+    UpdateRolesRequest:
+      type: object
+      required: [roles]
+      properties:
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+          minItems: 1
+          example: [BOARD_MEMBER, RESIDENT]
+
+    RoleDetail:
+      type: object
+      required: [role, name, description, defaultPermissions]
+      properties:
+        role:
+          $ref: '#/components/schemas/Role'
+        name:
+          type: string
+          example: "Administrador"
+        description:
+          type: string
+          example: "Administrador del complejo residencial con control total de la operación"
+        defaultPermissions:
+          type: array
+          items:
+            type: string
+          example:
+            - "units:*"
+            - "people:*"
+            - "fees:*"
+            - "requests:read"
+            - "requests:assign"
+            - "announcements:*"
+            - "expenses:create"
+            - "reports:read"
 
     ErrorResponse:
       $ref: './_shared.yaml#/components/schemas/ErrorResponse'
 
   responses:
     BadRequest:
-      description: Error de validación
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
+      $ref: './_shared.yaml#/components/responses/BadRequest'
     Unauthorized:
-      description: Token inválido o expirado
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
+      $ref: './_shared.yaml#/components/responses/Unauthorized'
+    Forbidden:
+      $ref: './_shared.yaml#/components/responses/Forbidden'
+    NotFound:
+      $ref: './_shared.yaml#/components/responses/NotFound'
 
   securitySchemes:
     bearerAuth:

@@ -1,64 +1,41 @@
 # 06 — Data
 
-> **What is this?** How the system stores, structures, and migrates data.
-> In microservices, data management is one of the most complex challenges.
+> **What is this?** How the system stores, structures, validates, and migrates data across
+> its 9 dedicated MySQL 8 databases (`ADR-004`).
 
 ## Fundamental principle in microservices
 
-> **Each microservice owns its own data.**
+> **Each microservice owns its own data (Database per Service).**
 
-No service should access another service's database directly. If it needs data from another
-service, it requests it via API or receives it via event. This principle guarantees independence.
+No service may access another service's database directly. Cross-service data is obtained
+synchronously via REST API or asynchronously via Domain Events (`02-domain/domain-events.md`).
 
 ---
 
-## What is here and how to fill it in
+## What is here
 
-### `models.md` ⭐
-Data models for each microservice.
-**Fill in:** ER (entity-relationship) diagram or description of collections/tables for each service.
+### `models.md` ⭐ — Complete
+Full MySQL 8 (`InnoDB`, `utf8mb4`) data models for all **9 microservices**, covering:
+- **18 domain & read-projection tables** (`users`, `refresh_tokens`, `units`, `commercial_establishments`, `person`, `unit_occupancies`, `maintenance_requests`, `administration_fees`, `payments`, `announcements`, `visits`, `visitor_vehicles`, `visitor_preauthorizations`, `correspondence`, `expense_proposals`, `approvals`, `requests_by_status_view`, `pending_fees_view`)
+- **2 cross-cutting event-resilience schemas** (`outbox` for the 7 publishing services and `processed_events` for the 4 consuming services)
+- Explicit table-level `CONSTRAINT fk_*`, `uq_*`, `chk_*`, and `idx_*` definitions
+- Inline data dictionaries, modeling decisions, 1NF–3NF/BCNF normalization assessment, Flyway + Expand-and-Contract migration strategy, safe seed-data policy, and full cross-service `erDiagram`
 
-**Format per service:**
-```markdown
-## Service: [name]
-**DB Engine:** [PostgreSQL / MongoDB / Redis / etc.]
-**Justification:** [why this engine for this service]
+### Consolidated sections inside `models.md`
+The following framework artifacts are consolidated inline inside `models.md` for this MVP scope and only need splitting into separate files if cross-service table counts expand significantly:
+- **`data-dictionary.md`** → Per-service *Data dictionary* subsections in `models.md`
+- **`modeling-conventions.md`** → *Data modeling principles* (`snake_case`, `CHAR(36)` UUIDs, UTC `TIMESTAMP`, `deleted_at` soft delete vs. append-only ledgers, table-level MySQL FKs)
+- **`normalization-assessment.md`** → *Normalization Assessment* section (1NF–3NF/BCNF verification + CQRS read-model and `unit_type_at_generation` snapshot justification)
+- **`migration-strategy.md`** → *Migration & Seed Data Strategy* section (Flyway `V{n}__` / `S{n}__` naming, forward-only rules, Expand & Contract zero-downtime protocol)
 
-### Table/Collection: [name]
-| Field | Type | Nullable | Description | Constraints |
-|-------|------|----------|-------------|-------------|
-| id | UUID | No | Unique identifier | PK |
-| [field] | [type] | [Yes/No] | [description] | [FK/Unique/etc.] |
+---
 
-### Indexes
-| Name | Fields | Type | Justification |
-|------|--------|------|---------------|
-```
+## Status
 
-### `data-dictionary.md` ⭐
-Exact meaning of each important field in the system.
-**Fill in:** especially for fields that may be ambiguous or have business rules.
-
-**Format:**
-```markdown
-| Field | Service | Table | Type | Detailed description | Possible values |
-|-------|---------|-------|------|---------------------|-----------------|
-| status | scheduling | schedule | ENUM | Current status of the schedule | ACTIVE, CANCELLED, PENDING |
-```
-
-### `modeling-conventions.md`
-Naming and style conventions for the project's databases.
-**Fill in:** naming (snake_case or camelCase), use of UUIDs vs sequential, standard timestamps,
-soft delete vs hard delete, auditing (created_at, updated_at, created_by).
-
-### `normalization-assessment.md`
-Analysis of the normalization level and justification for denormalizations.
-**Fill in:** for each intentional denormalization, explain why (performance, simplification).
-
-### `migration-strategy.md`
-Strategy for migrating data between schema versions.
-**Fill in:** migration tool (Flyway, Liquibase, Alembic), rollback policy,
-how to handle migrations with data in production.
+| Artifact | Status | Details |
+|----------|--------|---------|
+| `models.md` | ✅ Complete | 9 services (`iam-service` through `reports-service`), 9 MySQL 8 databases (`*_db`), 18 domain tables + `outbox` & `processed_events`, full `erDiagram`, Flyway + Expand-and-Contract strategy |
+| `data-dictionary.md`, `modeling-conventions.md`, `normalization-assessment.md`, `migration-strategy.md` | ✅ Merged in `models.md` | Maintained inline without pending placeholders; extract into separate files only if schemas outgrow `models.md` |
 
 ---
 
@@ -66,33 +43,31 @@ how to handle migrations with data in production.
 
 | This section is fed by... | And feeds into... |
 |---------------------------|-------------------|
-| `02-domain/entities-and-rules.md` → domain entities | DB tables |
-| `05-architecture/` → DB engine decisions | Engine choice in `models.md` |
-| `models.md` | `07-api/contracts/` → what data each service exposes |
+| `02-domain/entities-and-rules.md` → domain entities & invariants | DB tables & `CHECK` constraints |
+| `02-domain/domain-events.md` → 16 events & idempotent delivery | `outbox` & `processed_events` tables |
+| `05-architecture/` (`ADR-004`, `ADR-005`, `ADR-006`) | Engine choice, Outbox schema & `refresh_tokens` |
+| `models.md` | `07-api/contracts/` → exposed API schemas |
 | `models.md` | `08-uml/` → ER diagrams |
-| `models.md` | `09-microservices/[service]/data-model.md` |
+| `models.md` | `09-microservices/services/NN/data-model.md` |
 
 ---
 
-## Important data decisions in microservices
+## Key data architecture decisions
 
-### SQL or NoSQL?
-There is no single answer. It depends on the service:
-- **SQL** (PostgreSQL, MySQL): relational data, ACID transactions, fixed schema
-- **Document** (MongoDB): hierarchical data, flexible schema, high variability
-- **Key-value** (Redis): cache, sessions, high-speed temporary data
-- **Time series** (InfluxDB, TimescaleDB): metrics, event logs
+### Why SQL (MySQL 8) across all 9 services?
+Every entity in `02-domain/entities-and-rules.md` has a fixed relational schema requiring ACID guarantees (e.g., fee + payment ledger integrity, transactional `outbox` commit). Neither document stores (MongoDB), time-series engines (InfluxDB), nor full-text search engines (Elasticsearch) are needed in MVP scope.
 
-### How to handle consistency between services?
-Without a shared database, consistency is **eventual**:
-- Saga Pattern: chain of compensating transactions
-- Outbox Pattern: guarantee that the event is published along with the transaction
+### How is cross-service consistency guaranteed?
+Without shared databases or distributed 2PC locks, consistency is **eventual**:
+- **Transactional Outbox (`outbox`):** Guarantees at-least-once event publishing atomically with state changes (`05-architecture/decisions/records/architecture-decisions-and-infrastructure.md` §3.1).
+- **Idempotent Consumers (`processed_events`):** Prevents duplicate side effects upon message redelivery (`02-domain/domain-events.md`).
+- **Compensating flows (Saga):** Available in `05-architecture/pattern-guide.md` if future multi-step workflows require rollback.
 
 ---
 
-## Questions this section must answer
+## Questions this section answers
 
-- What data does each microservice handle?
-- Why was that database engine chosen for each service?
-- How is the schema updated without breaking the system?
-- Who is the "owner" of each piece of data in the system?
+- **What data does each microservice own?** → `models.md`, one `## Service:` section per microservice (18 domain tables + event-resilience tables across 9 dedicated `*_db` MySQL 8 schemas).
+- **Why MySQL 8 for all 9?** → Relational integrity, ACID transactions, and stack lock (`01-context/scope.md`, `ADR-004`).
+- **How do schemas evolve safely?** → Flyway forward-only versioned migrations + 4-step Expand & Contract for breaking changes.
+- **How are cross-service references enforced?** → Logical `CHAR(36)` references validated via REST/events, never cross-database SQL `FOREIGN KEY` constraints.
