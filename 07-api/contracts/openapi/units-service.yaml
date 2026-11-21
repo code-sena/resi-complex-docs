@@ -1,0 +1,594 @@
+openapi: 3.0.3
+info:
+  title: Units Service API
+  version: 1.0.0
+  description: |
+    Servicio de gestión de unidades habitacionales y comerciales (`resi-complex-units-service`):
+    registro, consulta, actualización y baja lógica (`deleted_at`) de unidades físicas residenciales
+    y comerciales, así como la administración del perfil comercial 1:1 para locales (`FR02`, `FR03`, `FR04`).
+
+    ## Autenticación
+    Todos los endpoints de negocio requieren un JWT válido en el encabezado:
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    ## Reglas de Dominio e Invariantes Clave
+    - **Unicidad de Nomenclatura (`uq_units_number`):** Cada unidad física debe tener un `unitNumber` único en todo el conjunto (ej. `Apto 301`, `Local 5`).
+    - **Invariante Comercial 1:1 (`AGGR-INV-001` / `BR-04`):** Un establecimiento comercial solo puede vincularse a una unidad de tipo `COMMERCIAL`. Si se intenta asociar a una unidad `RESIDENTIAL`, la solicitud es rechazada con `422 Unprocessable Entity`.
+    - **Protección de Baja con Cartera Activa (`BR-05`):** La eliminación lógica (`DELETE`) de una unidad es bloqueada con `409 Conflict` si presenta cuotas de administración pendientes (`PENDING`, `PARTIALLY_PAID`, `OVERDUE`) en `billing-service`.
+    - **Eventos de Dominio:** Todas las mutaciones publican eventos asíncronos (`UnitRegistered`, `UnitUpdated`, `CommercialEstablishmentRegistered`) a través del patrón Transactional Outbox.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://127.0.0.1:8083
+    description: Local development
+  - url: https://api.dev.{domain}/api/v1
+    description: Development
+    variables:
+      domain:
+        default: resicomplex.local
+  - url: https://api.{domain}/api/v1
+    description: Production
+    variables:
+      domain:
+        default: resicomplex.com
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Units
+    description: Registro, consulta, edición y baja de unidades físicas (residenciales y comerciales)
+  - name: Commercial Establishments
+    description: Gestión del perfil comercial 1:1 asociado a unidades comerciales
+  - name: Health
+    description: Monitoreo de salud y dependencias del microservicio
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Verifica el estado de salud del servicio y su conectividad con MySQL (`units_db`).
+      operationId: checkUnitsHealth
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp, dependencies]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2026-11-20T22:30:00Z'
+                  dependencies:
+                    type: object
+                    required: [database]
+                    properties:
+                      database:
+                        type: string
+                        enum: [ok, degraded, down]
+                        example: ok
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          description: Servicio no disponible o base de datos inaccesible
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/units:
+    get:
+      summary: Listar unidades
+      description: Retorna un listado paginado de unidades físicas con soporte para filtros por tipo y búsqueda por número.
+      operationId: listUnits
+      tags:
+        - Units
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/PageParam'
+        - $ref: './_shared.yaml#/components/parameters/LimitParam'
+        - name: unitType
+          in: query
+          required: false
+          description: Filtrar por tipo de unidad (`RESIDENTIAL` o `COMMERCIAL`)
+          schema:
+            $ref: '#/components/schemas/UnitType'
+        - name: search
+          in: query
+          required: false
+          description: Término de búsqueda para número de unidad o nombre comercial
+          schema:
+            type: string
+            example: Local
+      responses:
+        '200':
+          description: Lista paginada de unidades obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UnitSummaryResponse'
+                  meta:
+                    $ref: './_shared.yaml#/components/schemas/PaginatedMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      summary: Registrar unidad física
+      description: |
+        Registra una nueva unidad habitacional o comercial en el complejo (`FR02`).
+        Si la unidad es `COMMERCIAL`, permite adjuntar los datos iniciales de su establecimiento comercial.
+        Encola el evento `UnitRegistered` mediante el patrón Outbox.
+      operationId: registerUnit
+      tags:
+        - Units
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnitRequest'
+      responses:
+        '201':
+          description: Unidad registrada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Conflicto - el número de unidad ya se encuentra registrado
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+              example:
+                error: UNIT_NUMBER_ALREADY_EXISTS
+                message: La unidad con número 'Apto 301' ya existe en el sistema.
+        '422':
+          description: Datos semánticamente inválidos (ej. establecimiento comercial en unidad residencial)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/units/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador único UUID de la unidad
+        schema:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+
+    get:
+      summary: Consultar detalle de unidad
+      description: Retorna la información detallada de una unidad física y, si es comercial, los datos de su establecimiento vinculado.
+      operationId: getUnitById
+      tags:
+        - Units
+      responses:
+        '200':
+          description: Detalle de la unidad recuperado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Actualizar unidad física
+      description: Actualiza los atributos de una unidad existente (`FR03`) y publica el evento `UnitUpdated` vía Outbox.
+      operationId: updateUnit
+      tags:
+        - Units
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUnitRequest'
+      responses:
+        '200':
+          description: Unidad actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitDetailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Conflicto - número de unidad en uso por otra unidad
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Baja lógica de unidad (Soft-delete)
+      description: |
+        Marca la unidad como eliminada estableciendo el campo `deleted_at` (`FR03`).
+        Bloquea la operación con `409 Conflict` si la unidad tiene cuotas de administración pendientes (`BR-05`).
+      operationId: deleteUnit
+      tags:
+        - Units
+      responses:
+        '204':
+          description: Unidad dada de baja lógicamente con éxito
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Bloqueado por cuotas pendientes o en mora asociadas a la unidad (`BR-05`)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+              example:
+                error: UNIT_HAS_OUTSTANDING_FEES
+                message: No se puede eliminar la unidad porque presenta cuotas pendientes o en mora.
+
+  /api/v1/units/{id}/commercial:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador único UUID de la unidad comercial
+        schema:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+
+    get:
+      summary: Consultar establecimiento comercial
+      description: Retorna la información comercial vinculada a la unidad (`FR04`).
+      operationId: getCommercialEstablishment
+      tags:
+        - Commercial Establishments
+      responses:
+        '200':
+          description: Perfil del establecimiento comercial
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommercialEstablishmentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Unidad no encontrada o no posee establecimiento registrado
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Registrar establecimiento comercial
+      description: |
+        Registra el perfil comercial (nombre, actividad y horario de operación) para una unidad de tipo `COMMERCIAL` (`FR04`).
+        Publica el evento `CommercialEstablishmentRegistered` vía Outbox.
+        Rechaza con `422` si la unidad es de tipo `RESIDENTIAL` (`BR-04`).
+        Rechaza con `409` si la unidad ya posee un establecimiento comercial asociado (`uq_comm_est_unit_id`).
+      operationId: registerCommercialEstablishment
+      tags:
+        - Commercial Establishments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommercialEstablishmentRequest'
+      responses:
+        '201':
+          description: Establecimiento comercial registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommercialEstablishmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: La unidad ya cuenta con un establecimiento comercial registrado (relación 1:1)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+              example:
+                error: COMMERCIAL_ESTABLISHMENT_ALREADY_EXISTS
+                message: La unidad ya cuenta con un establecimiento comercial asignado.
+        '422':
+          description: Violación de invariante - la unidad no es de tipo comercial (`BR-04`)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+              example:
+                error: INVALID_UNIT_TYPE_FOR_ESTABLISHMENT
+                message: Solo las unidades clasificadas como COMMERCIAL pueden tener un establecimiento comercial.
+
+    put:
+      summary: Actualizar establecimiento comercial
+      description: Actualiza los datos comerciales (nombre comercial, actividad u horarios de atención) de la unidad.
+      operationId: updateCommercialEstablishment
+      tags:
+        - Commercial Establishments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCommercialEstablishmentRequest'
+      responses:
+        '200':
+          description: Establecimiento comercial actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommercialEstablishmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT emitido por auth-service que contiene el rol y claims del usuario autenticado.
+
+  responses:
+    BadRequest:
+      description: Solicitud inválida por formato o parámetros incorrectos
+      content:
+        application/json:
+          schema:
+            $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Token de autenticación ausente o inválido
+      content:
+        application/json:
+          schema:
+            $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Permisos insuficientes para realizar esta operación
+      content:
+        application/json:
+          schema:
+            $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  schemas:
+    UnitType:
+      type: string
+      enum:
+        - RESIDENTIAL
+        - COMMERCIAL
+      description: Clasificación de la unidad dentro del complejo residencial/comercial
+      example: RESIDENTIAL
+
+    UnitSummaryResponse:
+      type: object
+      required:
+        - id
+        - unitNumber
+        - unitType
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        unitNumber:
+          type: string
+          description: Nomenclatura física de la unidad
+          example: 'Apto 301'
+        unitType:
+          $ref: '#/components/schemas/UnitType'
+        hasCommercialEstablishment:
+          type: boolean
+          description: Indica si posee un establecimiento comercial asociado
+          example: false
+        createdAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+
+    UnitDetailResponse:
+      type: object
+      required:
+        - id
+        - unitNumber
+        - unitType
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        unitNumber:
+          type: string
+          description: Nomenclatura física de la unidad
+          example: 'Local 5'
+        unitType:
+          $ref: '#/components/schemas/UnitType'
+        commercialEstablishment:
+          $ref: '#/components/schemas/CommercialEstablishmentResponse'
+        createdAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+
+    CreateUnitRequest:
+      type: object
+      required:
+        - unitNumber
+        - unitType
+      properties:
+        unitNumber:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: Nomenclatura única de la unidad
+          example: 'Local 12'
+        unitType:
+          $ref: '#/components/schemas/UnitType'
+        commercialEstablishment:
+          $ref: '#/components/schemas/CreateCommercialEstablishmentRequest'
+
+    UpdateUnitRequest:
+      type: object
+      required:
+        - unitNumber
+        - unitType
+      properties:
+        unitNumber:
+          type: string
+          minLength: 1
+          maxLength: 20
+          example: 'Local 12-A'
+        unitType:
+          $ref: '#/components/schemas/UnitType'
+
+    CommercialEstablishmentResponse:
+      type: object
+      required:
+        - id
+        - unitId
+        - businessName
+        - businessType
+        - openingTime
+        - closingTime
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        unitId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        businessName:
+          type: string
+          description: Razón social o nombre comercial del establecimiento
+          example: 'Minimarket Los Andes'
+        businessType:
+          type: string
+          description: Actividad comercial o giro del negocio
+          example: 'Comercio de víveres y abarrotes'
+        openingTime:
+          type: string
+          description: Hora de apertura en formato HH:mm (24 horas)
+          example: '07:00'
+        closingTime:
+          type: string
+          description: Hora de cierre en formato HH:mm (24 horas)
+          example: '21:00'
+        createdAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+
+    CreateCommercialEstablishmentRequest:
+      type: object
+      required:
+        - businessName
+        - businessType
+        - openingTime
+        - closingTime
+      properties:
+        businessName:
+          type: string
+          minLength: 3
+          maxLength: 150
+          example: 'Cafetería La Esquina'
+        businessType:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: 'Cafetería y panadería'
+        openingTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: '06:30'
+        closingTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: '20:00'
+
+    UpdateCommercialEstablishmentRequest:
+      type: object
+      properties:
+        businessName:
+          type: string
+          minLength: 3
+          maxLength: 150
+          example: 'Café & Panadería La Esquina'
+        businessType:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: 'Cafetería, repostería y panadería'
+        openingTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: '06:00'
+        closingTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: '21:30'

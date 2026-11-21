@@ -1,0 +1,8 @@
+extends:
+  - recommended
+
+apis:
+  auth-service:
+    root: 07-api/contracts/openapi/auth-service.yaml
+  units-service:
+    root: 07-api/contracts/openapi/units-service.yaml
