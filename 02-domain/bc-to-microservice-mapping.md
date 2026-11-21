@@ -11,11 +11,11 @@ and service implementation (09-microservices).
 | 2 | Units Management | units-service | `09-microservices/services/03-units-service/` | 🔴 To create | TBD |
 | 3 | People Management | people-service | `09-microservices/services/04-people-service/` | 🔴 To create | TBD |
 | 4 | Maintenance | maintenance-service | `09-microservices/services/05-maintenance-service/` | 🔴 To create | TBD |
-| 5 | Billing | billing-service | `09-microservices/services/06-billing-service/` | 🔴 To create | TBD |
-| 6 | Financial Approval | finance-service | `09-microservices/services/07-finance-service/` | 🔴 To create | TBD |
-| 7 | Communications | communications-service | `09-microservices/services/08-communications-service/` | ✅ Exists | Julián Losada |
-| 8 | Access Control | access-control-service | `09-microservices/services/09-access-control-service/` | ✅ Exists | Julián Losada |
-| 9 | Reports | reports-service | `09-microservices/services/10-reports-service/` | 🔴 To create | TBD |
+| 5 | Billing | billing-service | `09-microservices/services/06-billing-service/` | ✅ Exists | Félix Murcia |
+| 6 | Financial Approval | finance-approval-service | `09-microservices/services/07-finance-service/` | ✅ Exists | Félix Murcia |
+| 7 | Communications | communications-service | `09-microservices/services/08-communications-service/` | 🔴 To create | TBD |
+| 8 | Access Control | access-service | `09-microservices/services/09-access-service/` | 🔴 To create | TBD |
+| 9 | Reports | reports-service | `09-microservices/services/10-reports-service/` | ✅ Exists | Félix Murcia |
 
 ## Cross-reference
 
