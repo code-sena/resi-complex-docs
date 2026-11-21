@@ -1,92 +1,76 @@
-# Auth Service
+# IAM / Auth Service (`resi-complex-iam-service`)
 
-> **Identity authority** of the system. Manages authentication, JWT issuance, and RBAC permissions.
-> It is the authoritative owner of the `User` and `Role` entities.
+> **Identity & Access Management Authority** of `resi-complex` (`FR01`, `FR20`, `ADR-006`). Manages user accounts across the **5 canonical authentication roles** (`ADMINISTRATOR`, `BOARD`, `PERSON`, `MAINTENANCE_STAFF`, `SECURITY_GUARD`), BCrypt credential verification, account lockout (`BR-02`), staff provisioning/activation (`FR20`), 1-hour JWT access tokens, and 7-day single-use rotating refresh tokens with family reuse detection (`BR-03`).
 
 ---
 
-## Location in the architecture
+## Location in the Architecture
 
 | Field | Value |
-|-------|-------|
-| Number in catalog | 02 |
-| Local port | 8081 |
-| Repository | [Service repo URL] |
-| DB engine | PostgreSQL (users and roles) + Redis (sessions and token blacklist) |
-| Communicates with | — (does not call other microservices) |
-| Consumed by | api-gateway (token verification), all other services |
+|---|---|
+| Number in catalog | 02 *(folder alias: `02-auth-service`; canonical service ID: `iam-service`)* |
+| Service Name | `resi-complex-iam-service` |
+| Local port | `8081` |
+| Repository | `https://github.com/resi-complex/resi-complex-iam-service.git` |
+| DB engine | MySQL 8.0 (`iam_db`: `users`, `refresh_tokens`, `outbox`) |
+| Architecture layer | Hexagonal Architecture (Ports & Adapters: Domain → Application Use Cases → Infrastructure Adapters) |
+| Tech stack | Java 25, Spring Boot 4.0.8, Spring Security, BCrypt, Spring Data JPA, Hibernate (`ddl-auto=validate`), Flyway (`V1__init_iam.sql`), OpenAPI 3.0.3 |
+| Communicates with | RabbitMQ (`resicomplex.events` via Transactional Outbox) |
+| Consumed by | `api-gateway` (`:8080` / local `:8090`), Web Frontend (Login, Activation, Admin User Management) |
 
 ---
 
-## Responsibilities (what this service DOES)
+## Responsibilities (What This Service DOES)
 
-- Register new users and hash passwords with bcrypt (cost 12)
-- Authenticate users and issue access tokens (JWT, RS256, 1h) and refresh tokens
-- Verify tokens: validate signature, expiration, and that they are not on the blacklist
-- Manage roles and permissions (RBAC): assign, revoke, query
-- Invalidate tokens (logout): add to blacklist in Redis until expiration
+- **User Authentication (`FR01` / `HU-IAM-001`):** Validates credentials via BCrypt (cost ≥ 12), enforces temporary lockout after 5 consecutive failed attempts (`15 min`, `BR-02`), and issues a 1-hour signed JWT + 7-day opaque refresh token.
+- **Rotating Refresh Tokens (`BR-03`):** Stores BCrypt-hashed refresh tokens in `iam_db.refresh_tokens`, rotates on every `/api/v1/auth/refresh`, and revokes the entire token family immediately if reuse of a rotated token is detected.
+- **Staff Provisioning & User Activation (`FR20` / `HU-IAM-002`):** Allows `ADMINISTRATOR` to provision privileged accounts (`BOARD`, `MAINTENANCE_STAFF`, `SECURITY_GUARD`, `ADMINISTRATOR`) and issue secure activation flows (`BR-01`).
+- **RBAC Role Authority (`00-governance/security-policy.md`):** Enforces the exact 5 authentication roles (`ADMINISTRATOR`, `BOARD`, `PERSON`, `MAINTENANCE_STAFF`, `SECURITY_GUARD`) and embeds canonical permissions in JWT claims.
 
-## Out of scope (what it does NOT do)
+## Out of Scope (What It Does NOT Do)
 
-- **Does not handle business profile information** (company name, app preferences) — that data belongs to the service that needs it
-- **Does not send emails** — publishes the `user.registered` event and notification-service listens to it
-- **Does not authorize access to specific resources** — only informs permissions; each service performs the final verification
+- **Does not store resident PII or unit occupancies:** Full profile data (`document_id`, `phone`, `person_type`, `unit_occupancies`) is strictly isolated in `people-service` (`people_db`, Ley 1581 de 2012).
+- **Does not evaluate resource ownership (`:own` / `:assigned`):** Downstream microservices verify resource ownership inside their Application layer (`P5`).
 
 ---
 
-## How to run it locally
+## Local Startup
 
 ```bash
-# Start with its dependencies (PostgreSQL + Redis)
-docker compose up -d auth-service
+# 1. Ensure MySQL 8 has the dedicated database
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS iam_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-# Verify
-curl http://localhost:8081/health
+# 2. Run the service (Flyway runs V1__init_iam.sql automatically; Hibernate validates schema)
+mvn spring-boot:run
 
-# Create a test user
-curl -X POST http://localhost:8081/api/v1/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"email": "dev@example.com", "password": "DevPass123!", "name": "Dev User"}'
+# 3. Execute automated hexagonal test suite (3/3 tests passing)
+mvn test
+
+# 4. Verify health
+curl http://127.0.0.1:8081/health
 ```
 
 ---
 
-## Related documents
+## Environment Variables
 
-- [data-model.md](./data-model.md) — Tables `users`, `roles`, `user_roles`
-- [events.md](./events.md) — `user.registered`, `user.login_failed`, `user.password_changed`
-- [decisions.md](./decisions.md) — Design decisions for the authentication service
-- [runbook.md](./runbook.md) — Operation: key rotation, password reset, token blacklist
-- [API Contract](../../../07-api/contracts/openapi/auth-service.yaml)
-
----
-
-## Emitted JWT structure
-
-```json
-{
-  "sub": "550e8400-e29b-41d4-a716-446655440000",
-  "email": "user@example.com",
-  "roles": ["USER"],
-  "permissions": ["appointment:read", "appointment:write"],
-  "iat": 1705316400,
-  "exp": 1705320000
-}
-```
-
-**Algorithm:** RS256 (public key available at `GET /api/v1/auth/jwks`)
+| Variable | Description | Example / Default |
+|---|---|---|
+| `SERVER_PORT` | HTTP listen port | `8081` |
+| `DB_URL` | MySQL 8 JDBC URL | `jdbc:mysql://localhost:3306/iam_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true` |
+| `DB_USERNAME` | MySQL user for `iam_db` | `resi_dev` |
+| `DB_PASSWORD` | MySQL password (injected via env/Vault — never hardcoded) | *(required)* |
+| `JWT_SECRET` | HS256 signing key (≥ 256 bits; matches `api-gateway`) | *(required)* |
+| `JWT_ACCESS_EXPIRATION_SECONDS` | Access token TTL | `3600` (1 hour) |
+| `JWT_REFRESH_EXPIRATION_DAYS` | Refresh token TTL | `7` (7 days) |
+| `IAM_MAX_FAILED_ATTEMPTS` | Failed logins before lockout (`BR-02`) | `5` |
+| `IAM_LOCKOUT_MINUTES` | Temporary lockout duration | `15` |
 
 ---
 
-## Required environment variables
+## Documentation Links
 
-See `.env.example` at the root for the variable names.
-Real values are in the vault of the corresponding environment.
-
-| Variable | Purpose |
-|----------|---------|
-| `APP_AUTH_DATABASE_URL` | PostgreSQL connection |
-| `APP_AUTH_REDIS_URL` | Redis connection (token blacklist) |
-| `APP_AUTH_JWT_PRIVATE_KEY` | RS256 private key for signing tokens |
-| `APP_AUTH_JWT_PUBLIC_KEY` | RS256 public key for verifying tokens |
-| `APP_AUTH_BCRYPT_ROUNDS` | bcrypt cost factor (default: 12) |
+- OpenAPI Contract → [`07-api/contracts/openapi/auth-service.yaml`](../../../07-api/contracts/openapi/auth-service.yaml)
+- Canonical Data Model → [`06-data/models.md`](../../../06-data/models.md) (`iam_db`)
+- Architecture Decision → [`ADR-006`](../../../05-architecture/decisions/records/ADR-006-jwt-authentication-strategy.md)
+- [data-model.md](./data-model.md) · [events.md](./events.md) · [decisions.md](./decisions.md) · [runbook.md](./runbook.md)

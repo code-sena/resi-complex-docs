@@ -11,12 +11,12 @@
 | Number in catalog | 03 |
 | Service Name | `resi-complex-units-service` |
 | Local port | `8083` |
-| Repository | `https://github.com/code-sena/resi-complex-units-service.git` |
+| Repository | `https://github.com/resi-complex/resi-complex-units-service.git` |
 | DB engine | MySQL 8.0 (`units_db`) |
 | Architecture layer | Hexagonal / Clean Architecture (Controller → Application Service → Domain Model → Outbox / Repository) |
-| Tech stack | Java 17+, Spring Boot 3.x, Spring Data JPA, Hibernate, Flyway, Swagger/OpenAPI |
-| Communicates with | Domain Event Broker (RabbitMQ), `billing-service` (sync HTTP check for unpaid fees prior to deletion) |
-| Consumed by | API Gateway (:8080), Web/Mobile Frontends (Admin, Resident, Merchant portals) |
+| Tech stack | Java 25 (17+ baseline), Spring Boot 4.0.8 (3.x+ compatible), Spring Data JPA, Hibernate (`ddl-auto=validate`), Flyway, OpenAPI 3.0.3 |
+| Communicates with | Domain Event Broker (RabbitMQ), `billing-service` (`:8084` sync HTTP check for unpaid fees prior to deletion `BR-05`) |
+| Consumed by | API Gateway (`:8080`), Web/Mobile Frontends (`ADMINISTRATOR`, `BOARD`, `PERSON`, `MAINTENANCE_STAFF`, `SECURITY_GUARD`) |
 
 ---
 

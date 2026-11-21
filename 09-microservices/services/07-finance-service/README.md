@@ -13,24 +13,24 @@
 | Service Name | `resi-complex-finance-approval-service` |
 | Local port | `8088` |
 | Repository | `https://github.com/resi-complex/resi-complex-finance-approval-service.git` |
-| DB engine | MySQL 8.0 (`finance_db`) |
+| DB engine | MySQL 8.0 (`finance_approval_db`, Phase-1 local repo alias: `finance_db`) |
 | Architecture layer | Hexagonal / Layered (Controller → Service → Repository → Entity) |
-| Tech stack | Java 25, Spring Boot 4.0.8, Spring Data JPA, Hibernate, Flyway, SpringDoc OpenAPI 3.0.3 |
-| Communicates with | Domain event bus (RabbitMQ) |
-| Consumed by | API Gateway (:8080), Web Frontend (Administrator and Board Member portals) |
+| Tech stack | Java 25, Spring Boot 4.0.8, Spring Data JPA, Hibernate (`ddl-auto=validate`), Flyway, SpringDoc OpenAPI 3.0.3 |
+| Communicates with | Domain event bus (RabbitMQ `resicomplex.events`) |
+| Consumed by | API Gateway (`:8080`), Web Frontend (`ADMINISTRATOR` and `BOARD` portals) |
 
 ---
 
 ## Responsibilities (What this service DOES)
 
-- **Extraordinary Expense Proposals (`FR17`):** Allows administrators to create extraordinary expense proposals (`title`, `description`, `estimatedAmount`, `proposedBy`) initialized in `PENDING_REVIEW` status.
-- **Immutable Board Voting (`FR18`):** Records append-only votes (`APPROVED` or `REJECTED`) with comments from Board members (`BOARD_MEMBER`), enforcing one vote per member per proposal.
+- **Extraordinary Expense Proposals (`FR17`):** Allows `ADMINISTRATOR` to create extraordinary expense proposals (`title`, `description`, `estimatedAmount`, `proposedBy`) initialized in `PENDING_REVIEW` status.
+- **Immutable Board Voting (`FR18`):** Records append-only votes (`APPROVED` or `REJECTED`) with comments from Board members (`BOARD`), enforcing one vote per member per proposal (`BR-15`).
 - **Automated Quorum Resolution (`FR18`):** Automatically transitions proposals to `APPROVED` or `REJECTED` and timestamps `approvalDate` once the quorum threshold is reached, blocking subsequent votes.
 
 ## Out of Scope (What it does NOT do)
 
 - **Does not execute bank transfers or supplier disbursements:** Tracks governance approval and audit trails only.
-- **Does not manage Board member identities:** `boardMemberId` and `proposedBy` are logical references to `auth-service` / `people-service`.
+- **Does not manage Board member identities:** `boardMemberId` and `proposedBy` are logical references to `iam-service` / `people-service`.
 
 ---
 

@@ -10,39 +10,40 @@
 
 | Environment | Purpose | Update | Access | Data |
 |-------------|---------|--------|--------|------|
-| **local** | Development on the dev's machine | Manual | Individual dev | Synthetic / seed |
-| **dev** | Continuous integration | Automatic (each PR merge to `develop`) | Entire team | Synthetic |
-| **staging** | Pre-production, QA, demos | Automatic (each merge to `main`) | Team + PO | Anonymized from prod |
-| **production** | Real users | Manual (approval required) | Tech Lead + DevOps only | Real |
+| **local** | Individual development (`docker compose`) | Manual | Individual dev | Synthetic / seed |
+| **dev** | Continuous integration (`dev` branch) | Automatic (PR merge to `dev`) | Entire team | Synthetic (Testcontainers) |
+| **staging** | Pre-production, QA, pilot demos (`main`) | Manual / release candidate | Team + Instructor / PO | Anonymized |
+| **production** | Post-formative live residential complex | Manual (double approval) | Tech Lead + DevOps only | Real (Ley 1581 protected) |
 
 ---
 
 ## Environment variables per environment
 
-> Specific variables go in the environment's secrets system (Vault, AWS Secrets, K8s Secrets).
-> Local values go in `.env.example` (without real data).
+> Specific variables go in the environment's secrets system (Vault, AWS Secrets Manager, Kubernetes Secrets).
+> Local values go in `.env.example` (never real credentials).
 
 ### Naming convention
 
 ```
-APP_[SERVICE]_[VARIABLE]
-
-Examples:
-  APP_AUTH_JWT_SECRET
-  APP_ORDERS_DATABASE_URL
-  APP_NOTIFICATIONS_SMTP_HOST
+Standardized 12-Factor environment variables per service (`05-architecture/deployment.md`):
+  SERVER_PORT
+  DB_URL
+  DB_USERNAME
+  DB_PASSWORD
+  JWT_SECRET
+  RABBITMQ_HOST / RABBITMQ_PORT
 ```
 
-### Variables per environment (example values — real ones in the vault)
+### Variables per environment (synthetic local examples — production injected via Vault)
 
-| Variable | Local | Dev | Staging | Production |
-|----------|-------|-----|---------|------------|
-| `DATABASE_URL` | `postgresql://dev:dev@localhost/dev_db` | Vault | Vault | Vault |
-| `REDIS_URL` | `redis://localhost:6379` | Vault | Vault | Vault |
-| `JWT_SECRET` | `dev-secret-only-local` | Vault | Vault | Vault |
-| `LOG_LEVEL` | `debug` | `info` | `info` | `warn` |
-| `NODE_ENV` | `development` | `development` | `staging` | `production` |
-| `CORS_ORIGIN` | `http://localhost:3000` | `https://dev.[domain]` | `https://staging.[domain]` | `https://[domain]` |
+| Variable | Local | Dev (CI) | Staging | Production |
+|----------|-------|----------|---------|------------|
+| `DB_URL` | `jdbc:mysql://localhost:3306/{service}_db?useSSL=false&serverTimezone=UTC` | Testcontainers MySQL 8 | Vault | Vault |
+| `RABBITMQ_HOST` | `localhost` (`:5672`) | Testcontainers RabbitMQ | Vault | Vault |
+| `JWT_SECRET` | Local ≥ 256-bit dev key | CI secret | Vault | Vault |
+| `LOG_LEVEL` | `DEBUG` | `INFO` | `INFO` | `WARN` |
+| `SPRING_PROFILES_ACTIVE` | `local` | `ci` | `staging` | `prod` |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:5500` | `https://dev.resicomplex.com` | `https://staging.resicomplex.com` | `https://app.resicomplex.com` |
 
 ---
 

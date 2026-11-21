@@ -81,10 +81,10 @@ exception applies only to the raw artifact, never to what's built from it.
 
 **Impact on the system:**
 - Affected services: none (documentation-only).
-- Documents that must be updated:
-  - `00-governance/documentation-rules.md` — add a line referencing this exception.
-  - `00-governance/git-conventions.md` / PR checklist, if it currently flags any non-English `.md` file — must allow-list `03-product/interview_resi-complex.md` and `03-product/resi-complex-tech-watch.md`.
-  - Filename `interview_resi-complex.md` still needs a **separate** fix for kebab-case (`interview-resi-complex.md`) — that is a naming issue, not a language issue, and this ADR does not resolve it.
+- Documents updated:
+  - `00-governance/documentation-rules.md` — references this bounded exception.
+  - `00-governance/git-conventions.md` / PR checklist — allow-lists `03-product/interview-resi-complex.md` and `03-product/resi-complex-tech-watch.md`.
+  - Filename `interview_resi-complex.md` was subsequently renamed to kebab-case (`03-product/interview-resi-complex.md`) to satisfy `00-governance/documentation-rules.md`.
 
 ---
 
@@ -93,7 +93,7 @@ exception applies only to the raw artifact, never to what's built from it.
 | Risk | Probability | Impact | Mitigation |
 |------|------------|--------|-----------|
 | Future contributor adds another Spanish file "because these two are allowed" | Medium | Medium | Exception is scoped explicitly to *raw research artifacts*, not to `03-product/` as a folder; state this scope clearly in `documentation-rules.md` |
-| Non-Spanish speaker needs a specific insight from these files | Low | Low | Key findings must already be synthesized into English in `vision.md` / `problem-framing.md` per this ADR's own decision clause |
+| Non-Spanish speaker needs a specific insight from these files | Low | Low | Key findings must already be synthesized into English in `vision.md` / `problem-framing.md` / `discovery-brief.md` per this ADR's own decision clause |
 
 ---
 
@@ -101,4 +101,4 @@ exception applies only to the raw artifact, never to what's built from it.
 
 - Extends: `05-architecture/decisions/records/ADR-001-idioma-documentacion.md`
 - Documentation rules → `00-governance/documentation-rules.md`
-- Affected files: `03-product/interview_resi-complex.md`, `03-product/resi-complex-tech-watch.md`
+- Affected files: `03-product/interview-resi-complex.md` *(formerly `interview_resi-complex.md`)*, `03-product/resi-complex-tech-watch.md`

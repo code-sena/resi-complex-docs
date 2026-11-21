@@ -1,7 +1,7 @@
 # Access Control Service (`resi-complex-access-control-service`)
 
-> **Front Desk & Access Authority** of the system. Manages visitor admissions, vehicle entry/exit tracking (differentiating personal visits from commercial establishment clients), and front desk package/correspondence logging (`FR13`, `FR14`, `FR15`).
-> Authoritative owner of `Visit` and `Correspondence` entities.
+> **Front Desk & Access Authority** of the system. Manages visitor admissions (`FR12`), optional vehicle entry/exit tracking (`FR13`, `FR14`), front-desk correspondence with 4-digit pickup PIN handover (`FR15`, `FR16`), and resident visitor pre-authorizations (`FR22`).
+> Authoritative owner of `Visit`, `VisitorVehicle`, `VisitorPreauthorization`, and `Correspondence` entities.
 
 ---
 
@@ -15,18 +15,19 @@
 | Repository | `https://github.com/resi-complex/resi-complex-access-control-service.git` |
 | DB engine | MySQL 8.0 (`access_control_db`) |
 | Architecture layer | Hexagonal / Layered (Controller → Service → Repository → Entity) |
-| Tech stack | Java 17+, Spring Boot 3.x, Spring Data JPA, Hibernate, Flyway, Swagger/OpenAPI |
-| Communicates with | Domain event bus (RabbitMQ) |
-| Consumed by | API Gateway (:8080), Security Guard touch interface, Resident portal |
+| Tech stack | Java 25 (17+ baseline), Spring Boot 4.0.8 (3.x+ compatible), Spring Data JPA, Hibernate (`ddl-auto=validate`), Flyway, OpenAPI 3.0.3 |
+| Communicates with | Domain event bus (RabbitMQ `resicomplex.events`) |
+| Consumed by | API Gateway (`:8080`), `SECURITY_GUARD` touch interface, `PERSON` portal, `ADMINISTRATOR` & `BOARD` oversight |
 
 ---
 
 ## Responsibilities (What this service DOES)
 
-- **Visitor Admission Logging (FR13):** Security guards log incoming visitors by recording full name, government document number, destination unit ID, and visitor category (`PERSONAL_VISITOR` vs. `COMMERCIAL_CLIENT`).
-- **Vehicle Access Control (FR14):** Records vehicle license plate and vehicle classification (`CAR`, `MOTORCYCLE`, `NONE`) tied to an incoming visit.
-- **Active Visits Monitoring & Exit Tracking:** Provides real-time queries of visitors currently inside the complex (`/visits/active`) and timestamps their departure (`PATCH /visits/{id}/exit`).
-- **Front Desk Correspondence & Packages (FR15):** Logs incoming mail and parcels (envelopes, packages, food deliveries) designated per unit, and tracks pickup delivery transitions (`PENDING_PICKUP` → `DELIVERED`).
+- **Visitor Admission Logging (`FR12`):** `SECURITY_GUARD` logs incoming visitors with full name, government document number, destination `unitId`, and visitor category (`PERSONAL` vs. `COMMERCIAL_CLIENT`, `BR-13`).
+- **Vehicle Access Control (`FR13`):** Records optional vehicle license plate and classification (`CAR`, `MOTORCYCLE`, `NONE`) tied to an incoming visit.
+- **Active Visits Monitoring & Exit Tracking (`FR14`):** Provides real-time queries of visitors currently inside the complex (`/api/v1/visits/active`) and timestamps their departure (`PATCH /api/v1/visits/{id}/exit`).
+- **Front Desk Correspondence & PIN Handover (`FR15`, `FR16`):** Logs incoming mail/parcels with a 4-digit `pickup_pin` (`BR-14`), lets `PERSON` view own pending deliveries (`:own`), and confirms delivery transitions (`PENDING_PICKUP` → `DELIVERED`).
+- **Visitor Pre-Authorizations (`FR22`):** Allows `PERSON` users with active occupancy (`BR-07`) to pre-authorize expected guests for quick gate check-in.
 
 ## Out of Scope (What it does NOT do)
 

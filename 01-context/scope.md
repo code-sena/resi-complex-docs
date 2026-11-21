@@ -95,7 +95,7 @@ What the system **does NOT build** in this version and why:
 
 | Dependency | Team / Provider | Required date | Status |
 |-----------|----------------|--------------|--------|
-| Confirmation of the final microservices catalog | SENA instructor | Before starting `06-data/` | 🟡 In progress |
+| Confirmation of the final microservices catalog (9 services + API Gateway) | SENA instructor | Before starting `06-data/` | ✅ Confirmed (`05-architecture/overview.md`, `09-microservices/service-catalog.md`) |
 | N/A — no third-party providers or external APIs | N/A | N/A | N/A |
 
 ---

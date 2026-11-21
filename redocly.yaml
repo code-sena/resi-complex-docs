@@ -2,12 +2,22 @@ extends:
   - recommended
 
 apis:
-  access-control-service:
-    root: 07-api/contracts/openapi/access-control-service.yaml
+  api-gateway:
+    root: 07-api/contracts/openapi/api-gateway.yaml
   auth-service:
     root: 07-api/contracts/openapi/auth-service.yaml
+  communications-service:
+    root: 07-api/contracts/openapi/communications-service.yaml
+  units-service:
+    root: 07-api/contracts/openapi/units-service.yaml
   billing-service:
     root: 07-api/contracts/openapi/billing-service.yaml
+  people-service:
+    root: 07-api/contracts/openapi/people-service.yaml
+  maintenance-service:
+    root: 07-api/contracts/openapi/maintenance-service.yaml
+  access-control-service:
+    root: 07-api/contracts/openapi/access-control-service.yaml
   finance-service:
     root: 07-api/contracts/openapi/finance-service.yaml
   reports-service:

@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: |
     Servicio de aprobación financiera y votación del Consejo de Administración (`resi-complex-finance-approval-service`):
-    registro de propuestas de gasto extraordinario, emisión de votos inmutables por miembros del Consejo (`BOARD_MEMBER`),
+    registro de propuestas de gasto extraordinario, emisión de votos inmutables por miembros del Consejo (`BOARD`),
     cálculo de quórum y resolución automática de propuestas (`FR17`, `FR18`).
 
     ## Autenticación
@@ -49,7 +49,7 @@ paths:
   /health:
     get:
       summary: Health check
-      description: Verifica el estado del servicio de aprobación financiera y su conexión con MySQL (`finance_db`).
+      description: Verifica el estado del servicio de aprobación financiera y su conexión con MySQL (`finance_approval_db`, alias local `finance_db`).
       operationId: checkFinanceHealth
       tags: [Health]
       security: []
@@ -90,7 +90,7 @@ paths:
       description: |
         Retorna la lista de propuestas de gasto extraordinario junto con su conteo de votos a favor, en contra y el detalle de votos emitidos. Permite filtrar por estado (`PENDING_REVIEW`, `APPROVED`, `REJECTED`).
 
-        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (`expenses:read`).
+        **Roles permitidos:** `ADMINISTRATOR`, `BOARD` (`expenses:read`).
       operationId: listExpenseProposals
       tags: [ExpenseProposals]
       security:
@@ -125,7 +125,7 @@ paths:
       description: |
         Registra una nueva propuesta de gasto extraordinario en estado `PENDING_REVIEW` para ser sometida a votación por los miembros del Consejo de Administración.
 
-        **Roles permitidos:** `ADMIN` (`expenses:create`).
+        **Roles permitidos:** `ADMINISTRATOR` (`expenses:create`).
       operationId: createExpenseProposal
       tags: [ExpenseProposals]
       security:
@@ -163,7 +163,7 @@ paths:
       description: |
         Retorna la información completa de una propuesta de gasto extraordinario, incluyendo su estado actual, fecha de resolución y el listado de votos emitidos por el Consejo.
 
-        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (`expenses:read`).
+        **Roles permitidos:** `ADMINISTRATOR`, `BOARD` (`expenses:read`).
       operationId: getExpenseProposalById
       tags: [ExpenseProposals]
       security:
@@ -190,7 +190,7 @@ paths:
       description: |
         Obtiene el historial inmutable de votos emitidos por los miembros del Consejo de Administración para una propuesta específica.
 
-        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (`expenses:read`).
+        **Roles permitidos:** `ADMINISTRATOR`, `BOARD` (`expenses:read`).
       operationId: getVotesByProposal
       tags: [ExpenseVotes]
       security:
@@ -218,7 +218,7 @@ paths:
       description: |
         Registra el voto inmutable (`APPROVED` o `REJECTED`) de un miembro del Consejo de Administración sobre una propuesta en estado `PENDING_REVIEW`. Si con este voto se alcanza el quórum de mayoría, la propuesta pasa automáticamente a `APPROVED` o `REJECTED`.
 
-        **Roles permitidos:** `BOARD_MEMBER` (`expenses:approve`, `expenses:reject`).
+        **Roles permitidos:** `BOARD` (`expenses:approve`, `expenses:reject`).
       operationId: castExpenseVote
       tags: [ExpenseVotes]
       security:

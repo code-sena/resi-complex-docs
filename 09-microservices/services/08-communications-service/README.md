@@ -1,6 +1,6 @@
 # Communications Service (`resi-complex-communications-service`)
 
-> **Announcements & Segmented Broadcast Authority** of the system. Manages official administrative announcements, emergency alerts, and segmented communication targeting residential units, commercial establishments, or the entire complex (`FR12`).
+> **Announcements & Segmented Broadcast Authority** of the system. Manages official administrative announcements, emergency alerts, segmented communications (`FR11`), and reactive event-driven in-app notifications (`FR07`) targeting residential units, commercial establishments, or the entire complex.
 > Authoritative owner of the `Announcement` entity.
 
 ---
@@ -15,24 +15,24 @@
 | Repository | `https://github.com/resi-complex/resi-complex-communications-service.git` |
 | DB engine | MySQL 8.0 (`communications_db`) |
 | Architecture layer | Hexagonal / Layered (Controller → Service → Repository → Entity) |
-| Tech stack | Java 17+, Spring Boot 3.x, Spring Data JPA, Hibernate, Flyway, Swagger/OpenAPI |
-| Communicates with | Domain event bus (RabbitMQ) |
-| Consumed by | API Gateway (:8080), Web Frontend (Resident / Merchant / Admin portals) |
+| Tech stack | Java 25 (17+ baseline), Spring Boot 4.0.8 (3.x+ compatible), Spring Data JPA, Hibernate (`ddl-auto=validate`), Flyway, OpenAPI 3.0.3 |
+| Communicates with | Domain event bus (RabbitMQ `resicomplex.events`) |
+| Consumed by | API Gateway (`:8080`), Web Frontend (All 5 canonical roles) |
 
 ---
 
 ## Responsibilities (What this service DOES)
 
-- **Publish Announcements (FR12):** Allows administrators to publish announcements with title, content, target scope (`ALL`, `ONLY_RESIDENTIAL`, `ONLY_COMMERCIAL`), and publisher tracking.
+- **Publish Segmented Announcements (`FR11` / `HU-COMM-001`):** Allows `ADMINISTRATOR` to publish announcements with title, body, urgency (`INFORMATIVE`, `IMPORTANT`, `EMERGENCY`), target scope (`ALL`, `RESIDENTIAL_ONLY`, `COMMERCIAL_ONLY`), and publisher tracking.
+- **Reactive In-App Notifications (`FR07` / `HU-MAINT-003`):** Consumes operational events idempotently (`processed_events`) from `maintenance-service`, `billing-service`, `access-control-service`, and `finance-approval-service` to deliver in-app user alerts.
 - **Segmented Audience Filtering:** Returns announcements tailored to the viewer's unit classification (commercial premises see general and commercial announcements; residences see general and residential announcements).
-- **Lifecycle Management:** Allows editing (`PUT`) and soft deletion (`DELETE`) of active announcements.
-- **Audit & Traceability:** Maintains creation, update, and soft delete timestamps (`deleted_at`) for regulatory transparency.
+- **Lifecycle Management & Audit:** Supports soft deletion (`deleted_at`) while preserving regulatory traceability.
 
 ## Out of Scope (What it does NOT do)
 
-- **Does not manage authentication directly:** JWT token validation is offloaded to the API Gateway / `auth-service`.
+- **Does not manage authentication directly:** JWT token validation is offloaded to `api-gateway` / `iam-service`.
 - **Does not manage physical unit data:** Reference `unitType` is verified through token claims or inter-service contracts (`units-service`).
-- **Does not send external SMS or WhatsApp:** Communication is natively in-app through the announcements board.
+- **Does not send external SMS, SMTP, or WhatsApp:** Communication is natively in-app through the announcements board and notification feed (`01-context/scope.md`).
 
 ---
 

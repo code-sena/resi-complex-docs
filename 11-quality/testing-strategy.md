@@ -84,34 +84,26 @@ it('total should be the sum of items × quantity', () => {
 | **Isolation** | Low — use real DB and broker in Docker |
 | **Speed** | 50ms – 2s per test |
 | **Target coverage** | Happy path + 2-3 error cases per adapter |
-| **Tools** | Jest + Testcontainers, Spring Boot Test |
-| **Setup** | `docker compose up -d test-db test-broker` |
-| **When they run** | In CI, NOT in pre-commit (too slow) |
+| **Tools** | JUnit 5, Spring Boot Test (`@SpringBootTest`), Testcontainers (`mysql:8.0`, `rabbitmq:3.12`), Flyway |
+| **Setup** | Ephemeral Testcontainers (zero shared DB state between tests) |
+| **When they run** | In CI and local `mvn verify` (not pre-commit) |
 
-**Setup with Testcontainers:**
+**Setup with Testcontainers (Java + Spring Boot + MySQL 8):**
 
-```typescript
-// tests/integration/setup.ts
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
+```java
+@SpringBootTest
+@Testcontainers
+class AdministrationFeeRepositoryIntegrationTest {
 
-let pgContainer: StartedPostgreSqlContainer;
+    @Container
+    @ServiceConnection
+    static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
+        .withDatabaseName("billing_db")
+        .withUsername("test")
+        .withPassword("test");
 
-beforeAll(async () => {
-  pgContainer = await new PostgreSqlContainer('postgres:15')
-    .withDatabase('test_db')
-    .withUsername('test')
-    .withPassword('test')
-    .start();
-
-  process.env.DATABASE_URL = pgContainer.getConnectionUri();
-
-  // Apply migrations
-  await runMigrations(process.env.DATABASE_URL);
-}, 60_000); // 60s timeout for image pull
-
-afterAll(async () => {
-  await pgContainer.stop();
-});
+    // Flyway automatically executes V1__*.sql and Hibernate enforces ddl-auto=validate
+}
 ```
 
 ---

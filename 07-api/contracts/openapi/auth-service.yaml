@@ -209,7 +209,7 @@ paths:
       description: |
         Invalida la sesión activa y revoca el refresh token indicado.
 
-        **Roles permitidos:** Cualquier usuario autenticado (`ADMIN`, `BOARD_MEMBER`, `RESIDENT`, `MERCHANT`, `SECURITY_GUARD`, `MAINTENANCE_STAFF`).
+        **Roles permitidos:** Cualquier usuario autenticado (`ADMINISTRATOR`, `BOARD`, `PERSON`, `SECURITY_GUARD`, `MAINTENANCE_STAFF`).
       operationId: logout
       tags: [Auth]
       security:
@@ -242,7 +242,7 @@ paths:
       description: |
         Obtiene una lista paginada de usuarios registrados en el sistema, con filtros opcionales por rol, estado y búsqueda general.
 
-        **Roles permitidos:** `ADMIN`
+        **Roles permitidos:** `ADMINISTRATOR`
       operationId: getUsers
       tags: [Users]
       security:
@@ -296,7 +296,7 @@ paths:
       description: |
         Crea un nuevo usuario administrativo o del sistema, asignándole roles y datos iniciales de acceso.
 
-        **Roles permitidos:** `ADMIN`
+        **Roles permitidos:** `ADMINISTRATOR`
       operationId: createUser
       tags: [Users]
       security:
@@ -311,7 +311,7 @@ paths:
               email: nuevo.usuario@resicomplex.com
               password: "SecurePassword123!"
               name: "Carlos Mario Ruiz"
-              roles: ["RESIDENT"]
+              roles: ["PERSON"]
               personId: "550e8400-e29b-41d4-a716-446655440001"
       responses:
         '201':
@@ -342,7 +342,7 @@ paths:
       description: |
         Obtiene los detalles completos de un usuario específico a partir de su ID único (UUID).
 
-        **Roles permitidos:** `ADMIN`
+        **Roles permitidos:** `ADMINISTRATOR`
       operationId: getUserById
       tags: [Users]
       security:
@@ -373,7 +373,7 @@ paths:
       description: |
         Actualiza campos específicos del usuario (nombre, estado de activación o personId vinculado).
 
-        **Roles permitidos:** `ADMIN`
+        **Roles permitidos:** `ADMINISTRATOR`
       operationId: updateUser
       tags: [Users]
       security:
@@ -415,7 +415,7 @@ paths:
       description: |
         Realiza un borrado lógico (soft delete) del usuario, desactivando su cuenta y revocando el acceso.
 
-        **Roles permitidos:** `ADMIN`
+        **Roles permitidos:** `ADMINISTRATOR`
       operationId: deleteUser
       tags: [Users]
       security:
@@ -443,7 +443,7 @@ paths:
       description: |
         Reemplaza la lista completa de roles asignados al usuario indicado.
 
-        **Roles permitidos:** `ADMIN`
+        **Roles permitidos:** `ADMINISTRATOR`
       operationId: updateUserRoles
       tags: [Users]
       security:
@@ -462,7 +462,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateRolesRequest'
             example:
-              roles: ["BOARD_MEMBER", "RESIDENT"]
+              roles: ["BOARD"]
       responses:
         '200':
           description: Roles del usuario actualizados exitosamente
@@ -485,7 +485,7 @@ paths:
       description: |
         Obtiene el catálogo de roles disponibles en el sistema con su nombre descriptivo, explicación y permisos asociados por defecto.
 
-        **Roles permitidos:** `ADMIN`
+        **Roles permitidos:** `ADMINISTRATOR`
       operationId: getRoles
       tags: [Roles]
       security:
@@ -542,21 +542,19 @@ components:
     Role:
       type: string
       description: |
-        Roles del sistema resi-complex:
-        * `ADMIN`: Administrador del complejo residencial con control total operativo
-        * `BOARD_MEMBER`: Miembro del Consejo de Administración (fiscalización financiera y aprobación de gastos)
-        * `RESIDENT`: Residente de unidad habitacional
-        * `MERCHANT`: Comerciante / Arrendatario de unidad comercial
-        * `SECURITY_GUARD`: Personal de vigilancia y recepción en portería
-        * `MAINTENANCE_STAFF`: Personal técnico de mantenimiento
+        5 canonical authentication roles of resi-complex (`00-governance/security-policy.md`, `06-data/models.md`):
+        * `ADMINISTRATOR`: Complex administrator with full operational management
+        * `BOARD`: Board of Trustees member (financial oversight and extraordinary expense voting)
+        * `PERSON`: Resident or commercial owner/tenant (business subtype `RESIDENT` / `COMMERCIAL_OWNER` / `COMMERCIAL_TENANT` lives in `people-service`)
+        * `MAINTENANCE_STAFF`: Maintenance technician handling assigned requests
+        * `SECURITY_GUARD`: Front-desk security personnel logging visits, vehicles, and correspondence
       enum:
-        - ADMIN
-        - BOARD_MEMBER
-        - RESIDENT
-        - MERCHANT
-        - SECURITY_GUARD
+        - ADMINISTRATOR
+        - BOARD
+        - PERSON
         - MAINTENANCE_STAFF
-      example: ADMIN
+        - SECURITY_GUARD
+      example: ADMINISTRATOR
 
     RegisterRequest:
       type: object
@@ -625,7 +623,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Role'
-          example: [RESIDENT]
+          example: [PERSON]
         permissions:
           type: array
           items:
@@ -650,7 +648,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Role'
-          example: [ADMIN]
+          example: [ADMINISTRATOR]
         permissions:
           type: array
           items:
@@ -701,7 +699,7 @@ components:
           items:
             $ref: '#/components/schemas/Role'
           minItems: 1
-          example: [RESIDENT]
+          example: [PERSON]
         personId:
           type: string
           format: uuid
@@ -737,7 +735,7 @@ components:
           items:
             $ref: '#/components/schemas/Role'
           minItems: 1
-          example: [BOARD_MEMBER, RESIDENT]
+          example: [BOARD]
 
     RoleDetail:
       type: object

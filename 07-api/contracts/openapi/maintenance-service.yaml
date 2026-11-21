@@ -1,0 +1,498 @@
+openapi: 3.0.3
+info:
+  title: Maintenance Service API — resi-complex
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  description: |
+    **Maintenance Request Lifecycle Authority** (`resi-complex-maintenance-service`, `maintenance_db`).
+    Manages private-unit and common-area maintenance requests from reporting (`FR05`) through assignment,
+    repair execution, and resident/admin verification (`FR06`, `BR-08`, `BR-09`), publishing domain events
+    (`MaintenanceRequestCreated`, `MaintenanceRequestStatusUpdated`) via Transactional Outbox to trigger
+    reactive in-app notifications (`FR07`) and executive reports (`FR19`).
+
+    ## Authentication & Authorization
+    - `ADMINISTRATOR`: View all requests (`requests:read`), assign technician (`requests:assign`), and verify common-area repairs.
+    - `BOARD`: Read-only oversight (`requests:read`).
+    - `PERSON`: Create requests (`requests:create`), view own requests (`requests:read:own`), and verify or reject `WORK_COMPLETED` repairs (`requests:verify:own`).
+    - `MAINTENANCE_STAFF`: View and advance assigned requests only (`requests:read:assigned`, `requests:update:assigned`).
+
+    ## Domain Invariants
+    - **Location Integrity (`BR-08` / `chk_maintreq_location_ref`):** `PRIVATE_UNIT` requests require a valid `unitId`; `COMMON_AREA` requests require `commonAreaName` (`unitId` must be null).
+    - **Verified Closure State Machine (`BR-09`):** `PENDING → ASSIGNED → IN_PROGRESS → WORK_COMPLETED ⇄ IN_PROGRESS → RESOLVED`. Maintenance staff cannot unilaterally jump to `RESOLVED`; requester verification is mandatory (or rejection with `rejectionNotes` returning to `IN_PROGRESS`).
+
+servers:
+  - url: http://127.0.0.1:8086
+    description: Local maintenance-service (direct port 8086)
+  - url: http://127.0.0.1:8080
+    description: Local API Gateway (canonical port 8080)
+
+tags:
+  - name: Health
+    description: Service liveness and MySQL connectivity
+  - name: MaintenanceRequests
+    description: Maintenance request reporting, assignment, progress, and verification (FR05, FR06)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: getMaintenanceServiceHealth
+      summary: Health check for maintenance-service
+      description: Returns liveness status and MySQL (`maintenance_db`) connectivity. Public endpoint.
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/maintenance-requests:
+    get:
+      operationId: listMaintenanceRequests
+      summary: List maintenance requests scoped by role
+      description: |
+        Returns paginated maintenance requests filtered by `status`, `priority`, `locationType`, or `unitId`.
+        Automatically scoped by ownership: `PERSON` sees only own requests (`:own`), `MAINTENANCE_STAFF` sees only
+        assigned requests (`:assigned`), `ADMINISTRATOR` and `BOARD` see all requests.
+        **Allowed roles:** `ADMINISTRATOR`, `BOARD`, `PERSON` (`:own`), `MAINTENANCE_STAFF` (`:assigned`).
+      tags:
+        - MaintenanceRequests
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/PageParam'
+        - $ref: './_shared.yaml#/components/parameters/LimitParam'
+        - name: status
+          in: query
+          description: Filter by lifecycle status
+          schema:
+            $ref: '#/components/schemas/MaintenanceStatus'
+        - name: priority
+          in: query
+          description: Filter by priority tier
+          schema:
+            $ref: '#/components/schemas/MaintenancePriority'
+        - name: locationType
+          in: query
+          description: Filter by private unit vs. common area
+          schema:
+            $ref: '#/components/schemas/LocationType'
+        - name: unitId
+          in: query
+          description: Filter by physical unit UUID
+          schema:
+            $ref: './_shared.yaml#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Paginated list of maintenance requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMaintenanceRequestsResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+
+    post:
+      operationId: createMaintenanceRequest
+      summary: Create a maintenance request (FR05, HU-MAINT-001)
+      description: |
+        Creates a new maintenance request in `PENDING` status for a private unit (requiring active occupancy)
+        or a shared common area, publishing `MaintenanceRequestCreated` via Outbox.
+        **Allowed roles:** `PERSON` (`requests:create`), `ADMINISTRATOR`.
+      tags:
+        - MaintenanceRequests
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMaintenanceRequest'
+      responses:
+        '201':
+          description: Maintenance request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRequestResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '422':
+          description: Location invariant violation (`BR-08`)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/maintenance-requests/{id}:
+    get:
+      operationId: getMaintenanceRequestById
+      summary: Get maintenance request details
+      description: |
+        Returns full maintenance request details including assignee, status, rating, and rejection notes.
+        **Allowed roles:** `ADMINISTRATOR`, `BOARD`, `PERSON` (`:own`), `MAINTENANCE_STAFF` (`:assigned`).
+      tags:
+        - MaintenanceRequests
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Maintenance request detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRequestResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+  /api/v1/maintenance-requests/{id}/assign:
+    patch:
+      operationId: assignMaintenanceRequest
+      summary: Assign maintenance staff to a request (FR06, HU-MAINT-002)
+      description: |
+        Assigns a `MAINTENANCE_STAFF` user (`assignedTo`) and transitions status from `PENDING` to `ASSIGNED`.
+        Publishes `MaintenanceRequestStatusUpdated` via Outbox (`FR07`).
+        **Allowed roles:** `ADMINISTRATOR` (`requests:assign`).
+      tags:
+        - MaintenanceRequests
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignMaintenanceRequest'
+      responses:
+        '200':
+          description: Maintenance request assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRequestResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+        '409':
+          description: Invalid state transition (request is already resolved)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/maintenance-requests/{id}/status:
+    patch:
+      operationId: updateMaintenanceRequestStatus
+      summary: Advance assigned work-order status (FR06)
+      description: |
+        Allows assigned `MAINTENANCE_STAFF` to transition `ASSIGNED → IN_PROGRESS` or `IN_PROGRESS → WORK_COMPLETED`.
+        Direct transition to `RESOLVED` is forbidden (`422` — must go through `/verify` per `BR-09`).
+        **Allowed roles:** `MAINTENANCE_STAFF` (`requests:update:assigned`), `ADMINISTRATOR`.
+      tags:
+        - MaintenanceRequests
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMaintenanceStatusRequest'
+      responses:
+        '200':
+          description: Maintenance status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRequestResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+        '422':
+          description: Invalid lifecycle transition (`BR-09`)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/maintenance-requests/{id}/verify:
+    patch:
+      operationId: verifyMaintenanceRequest
+      summary: Confirm completed repair and close as RESOLVED (FR06, BR-09)
+      description: |
+        Transitions a `WORK_COMPLETED` request to terminal status `RESOLVED` with an optional 1–5 `residentRating`.
+        Publishes `MaintenanceRequestStatusUpdated` via Outbox.
+        **Allowed roles:** `PERSON` (`requests:verify:own`), `ADMINISTRATOR` (for common-area requests).
+      tags:
+        - MaintenanceRequests
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyMaintenanceRequest'
+      responses:
+        '200':
+          description: Request verified and marked RESOLVED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRequestResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+        '409':
+          description: Request is not in WORK_COMPLETED status
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/maintenance-requests/{id}/reject:
+    patch:
+      operationId: rejectMaintenanceWork
+      summary: Reject completed repair and return to IN_PROGRESS (FR06, BR-09)
+      description: |
+        Rejects a `WORK_COMPLETED` repair with mandatory `rejectionNotes`, returning the request to
+        `IN_PROGRESS` and notifying the assigned technician (`FR07`).
+        **Allowed roles:** `PERSON` (`requests:verify:own`), `ADMINISTRATOR`.
+      tags:
+        - MaintenanceRequests
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectMaintenanceRequest'
+      responses:
+        '200':
+          description: Repair rejected and returned to IN_PROGRESS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRequestResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+        '409':
+          description: Request is not in WORK_COMPLETED status
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, service, database]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+          example: maintenance-service
+        database:
+          type: string
+          enum: [connected, disconnected]
+
+    LocationType:
+      type: string
+      enum:
+        - PRIVATE_UNIT
+        - COMMON_AREA
+
+    MaintenanceCategory:
+      type: string
+      enum:
+        - PLUMBING
+        - ELECTRICAL
+        - STRUCTURAL
+        - ELEVATOR
+        - CLEANING
+        - OTHER
+
+    MaintenancePriority:
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+        - URGENT
+
+    MaintenanceStatus:
+      type: string
+      enum:
+        - PENDING
+        - ASSIGNED
+        - IN_PROGRESS
+        - WORK_COMPLETED
+        - RESOLVED
+
+    CreateMaintenanceRequest:
+      type: object
+      required: [locationType, type, description, priority]
+      properties:
+        locationType:
+          $ref: '#/components/schemas/LocationType'
+        unitId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Required when locationType is PRIVATE_UNIT
+        commonAreaName:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Required when locationType is COMMON_AREA
+          example: Elevator Tower 1
+        type:
+          $ref: '#/components/schemas/MaintenanceCategory'
+        description:
+          type: string
+          minLength: 10
+          maxLength: 500
+          example: Water pipe leak detected behind kitchen sink causing wall dampness.
+        priority:
+          $ref: '#/components/schemas/MaintenancePriority'
+
+    AssignMaintenanceRequest:
+      type: object
+      required: [assignedTo]
+      properties:
+        assignedTo:
+          type: string
+          format: uuid
+          description: User UUID of the MAINTENANCE_STAFF technician
+
+    UpdateMaintenanceStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum:
+            - IN_PROGRESS
+            - WORK_COMPLETED
+
+    VerifyMaintenanceRequest:
+      type: object
+      properties:
+        residentRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+
+    RejectMaintenanceRequest:
+      type: object
+      required: [rejectionNotes]
+      properties:
+        rejectionNotes:
+          type: string
+          minLength: 5
+          maxLength: 255
+          example: Pipe seal is still dripping after pressure test.
+
+    MaintenanceRequestResponse:
+      type: object
+      required: [id, personId, locationType, type, description, priority, status, createdAt, updatedAt]
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        personId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        unitId:
+          type: string
+          format: uuid
+          nullable: true
+        locationType:
+          $ref: '#/components/schemas/LocationType'
+        commonAreaName:
+          type: string
+          nullable: true
+        type:
+          $ref: '#/components/schemas/MaintenanceCategory'
+        description:
+          type: string
+        priority:
+          $ref: '#/components/schemas/MaintenancePriority'
+        assignedTo:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          $ref: '#/components/schemas/MaintenanceStatus'
+        residentRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        rejectionNotes:
+          type: string
+          nullable: true
+        createdAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+
+    PaginatedMaintenanceRequestsResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaintenanceRequestResponse'
+        meta:
+          $ref: './_shared.yaml#/components/schemas/PaginatedMeta'

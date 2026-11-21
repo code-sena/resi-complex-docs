@@ -1,54 +1,17 @@
-# Modelo de Datos — API Gateway
+# Data Model — `api-gateway`
 
-> El API Gateway es **stateless**: no tiene base de datos propia.
-> Su estado de configuración (rutas, rate limits, allowlists) se gestiona
-> mediante variables de ambiente y archivos de configuración versionados en Git,
-> no en tablas de base de datos.
+> **Persistence Strategy:** **Stateless (No Database).** Per `ADR-004` and `ADR-006`, `api-gateway` owns zero domain tables and never connects to any MySQL database.
 
 ---
 
-## Motor de base de datos
+## Ephemeral In-Memory / Cache State
 
-**Motor:** No aplica — sin base de datos persistente.
+| State Structure | Storage (MVP) | Storage (Multi-Replica Production) | TTL / Lifecycle | Purpose |
+|-----------------|---------------|------------------------------------|-----------------|---------|
+| Route definitions (`ServiceRouteDefinition`) | Externalized `application.properties` / env vars | ConfigMap / Spring Cloud Config | Process lifetime | Maps `/api/v1/*` prefixes to the 9 internal microservices (`:8081`–`:8089`) |
+| Rate-limit counters (`clientIp → requestTimestamps`) | In-memory concurrent sliding window | Shared Redis cluster (`NFR-003`) | 60 seconds | Enforces `GATEWAY_RPM_LIMIT` (default `240 RPM`) and returns `429 Too Many Requests` |
+| JWKS public-key cache *(when RS256 enabled)* | In-memory cache refreshed from `iam-service` `/api/v1/auth/jwks` | In-memory cache with ETag | 15 minutes | Enables stateless asymmetric JWT verification without synchronous IAM lookups |
 
-**Justificación:** Un API Gateway que requiere una BD propia introduce un punto de falla
-adicional en la capa que todo el tráfico atraviesa. El estado de routing se gestiona
-via configuración (archivos YAML o variables de ambiente), y el estado de sesión
-(token blacklist, rate limits) se delega a Redis compartido.
+## Architectural Rationale
 
----
-
-## Estado en memoria / Redis
-
-El API Gateway sí mantiene estado efímero:
-
-| Dato | Almacenamiento | TTL | Propósito |
-|------|---------------|-----|-----------|
-| Rate limit counters | Redis | 60 segundos | Conteo de peticiones por IP |
-| Token blacklist check | Redis (read-only) | Según expiración del token | Verificar tokens revocados |
-
-El auth-service es el **dueño** del token blacklist — el gateway solo lo consulta.
-
----
-
-## Archivos de configuración de rutas
-
-En lugar de tablas, las rutas se definen en:
-
-```
-config/
-├── routes.yaml          # Mapa de rutas: path → servicio + puerto
-├── rate-limits.yaml     # Límites por ruta y por rol
-└── cors.yaml            # Configuración CORS por origen
-```
-
-Estos archivos están versionados en Git y se recargo en el startup del servicio.
-Un cambio de rutas requiere un redeploy (intencional: los cambios de routing son cambios de infraestructura).
-
----
-
-## Correlaciones
-
-- Configuración de ambientes → `10-devops/environments.md`
-- Runbook del gateway → `runbook.md`
-- Catálogo de rutas disponibles → `09-microservices/service-catalog.md`
+Keeping `api-gateway` strictly stateless guarantees sub-millisecond edge overhead (`NFR-001`), eliminates database single-points-of-failure at the perimeter, and enables instant horizontal scaling (`NFR-003`).

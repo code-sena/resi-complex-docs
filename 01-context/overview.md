@@ -20,29 +20,31 @@ Residential-complex (resi-complex) is a web-based information system that lets t
 | Board of Trustees | Elected body responsible for financial oversight of the complex | Approves or rejects expense proposals, reviews financial reports |
 | Person (Resident / Commercial Owner or Tenant) | Occupant of a residential unit, or owner/tenant of a commercial unit | Creates maintenance requests, checks their fee status, views announcements segmented to their unit type, checks pending correspondence |
 | Maintenance Staff | Staff member who resolves maintenance requests | Views assigned requests and updates their status (received → in progress → resolved) |
-| Security Guard | Staff member responsible for the entrance/lobby (portería) | Logs visitor and vehicle entry/exit (personal visitors or commercial clients), logs incoming correspondence |e
+| Security Guard | Staff member responsible for the entrance/lobby (portería) | Logs visitor and vehicle entry/exit (personal visitors or commercial clients), logs incoming correspondence |
 
 ## Technology stack
 
 | Layer | Technology | Justification |
 |-------|-----------|---------------|
-| Frontend | Pending decision: Thymeleaf (server-rendered) or plain HTML/CSS/JS consuming a REST API | Team decision still open, depending on available development time and learning objectives for the cohort |
-| Backend | Java + Spring Boot, layered architecture (Controller–Service–Repository) per microservice | Language and framework required by the SENA ADSO formative program; layered/microservices structure enforces separation of concerns and independent deployability |
-| Database | MySQL, relational, in principle one database per microservice | Matches the relational nature of the domain (units, fees, approvals) and is the database confirmed for the project |
-| Message broker | Pending definition | Not yet selected; needed once inter-service communication patterns (e.g. fee generation, notifications) are finalized with the instructor |
-| Infrastructure | Pending definition | Not yet selected; to be defined together with the final microservices catalog (see `05-architecture/`) |
+| Frontend | Responsive Web UI (HTML5/CSS3/JS + Design System in `12-ux-ui/` validated via Google Stitch; Thymeleaf/SPA-compatible REST client) | Mobile-usable down to `360px` viewport and WCAG 2.1 AA compliant (`NFR-009`), decoupled from backend microservices via the API Gateway |
+| API Gateway | Spring Cloud Gateway (`:8080`, local fallback `:8090`) | Single entry point for centralized JWT verification, `X-User-*` header propagation, CORS, and rate limiting (`ADR-006`) |
+| Backend | Java 25 + Spring Boot 4.0.8, Hexagonal Architecture (Ports & Adapters) across 9 microservices | Stack confirmed for SENA ADSO 3239188 (`01-context/scope.md`, `ADR-003`); enforces strict domain isolation and independent testability |
+| Database | MySQL 8.0+ (`InnoDB`, `utf8mb4`), dedicated database per service (`Database per Service`) | Matches the relational, ACID nature of the domain (`ADR-004`, `06-data/models.md`), with Flyway migrations and `ddl-auto=validate` |
+| Message broker | RabbitMQ 3.12+ (AMQP 0-9-1, Topic Exchange `resicomplex.events`, DLQ) + Transactional Outbox | Lightweight event-driven transport for the 16 domain events and reactive policies (`ADR-005`, `02-domain/domain-events.md`) |
+| Infrastructure | Docker & Docker Compose (local MVP); Kubernetes-ready OCI containers (`NFR-007`) | Reproducible 12-Factor local setup (`05-architecture/deployment.md`, `10-devops/local-setup.md`) |
 
 ## Current status
 
-- **Phase:** In development (formative project — requirements, technology watch, and governance completed; implementation not started)
-- **Current version:** v0.1.0
-- **Last release:** Not yet released
-- **Next milestone:** Confirm final microservices catalog with the instructor, then define the data model per service (`06-data/`)
+- **Phase:** Active Phase 1 implementation (SDD documentation `00`–`15`, OpenAPI 3.0.3 contracts, and Google Stitch UX/UI established; 7 of 10 service repositories already implemented on `https://github.com/resi-complex`)
+- **Current version:** v0.2.0-dev
+- **Last release:** Phase 1 MVP Core & Operational Services in progress (`dev`)
+- **Next milestone:** Complete remaining Cut 1–2 service repositories (`units-service`, `people-service`, `maintenance-service`), wire RabbitMQ + Outbox end-to-end, and reach ≥ 80% JaCoCo + ArchUnit quality gates (`NFR-006`)
 
 ## Project contacts
 
-| Role | Name | Contact |
-|------|------|---------|
-| Tech Lead | Pending — to be assigned by the team | |
-| Product Owner | Pending — to be assigned by the team | |
-| DevOps | Pending — to be assigned by the team | |
+| Role | Name | GitHub / Responsibility |
+|------|------|-------------------------|
+| Tech Lead & IAM / Gateway Owner | Fabián Trujillo | `@Trujillo7915` — Architecture, `api-gateway`, `iam-service` |
+| Core Units, People & Maintenance Owner | María Alexandra Garzón | `@AlexandraVargass` — `units-service`, `people-service`, `maintenance-service` |
+| Core Billing, Finance & Reports Owner | Félix Murcia | `@FelixJRbyte` — `billing-service`, `finance-approval-service`, `reports-service` |
+| Security, Access & Communications Owner | Julián Losada | `@julianlp-hub` — `access-control-service`, `communications-service`, Security & DevOps |

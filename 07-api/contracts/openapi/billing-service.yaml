@@ -17,7 +17,7 @@ info:
     ## Reglas de Dominio Clave
     - **Tarifa diferenciada congelada al generar (`BR-10`):** El tipo de unidad (`RESIDENTIAL` o `COMMERCIAL`) y la tarifa aplicada quedan registrados en la cuota al momento de su emisión.
     - **No duplicidad de período (`BR-10`):** Solo puede existir una cuota por `(unitId, billingYear, billingMonth)`.
-    - **Visibilidad por propiedad/ocupación (`BR-12`):** `RESIDENT` y `MERCHANT` solo pueden consultar y reportar pagos de sus propias unidades (`fees:read:own`).
+    - **Visibilidad por propiedad/ocupación (`BR-12`):** `PERSON` (residente o comerciante) solo pueden consultar y reportar pagos de sus propias unidades (`fees:read:own`).
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -90,7 +90,7 @@ paths:
       description: |
         Retorna la lista de cuotas de administración registradas en el conjunto, con filtros opcionales por estado (`PENDING`, `PAID`, `OVERDUE`), tipo de unidad o período.
 
-        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (lectura global), `RESIDENT` (`fees:read:own`), `MERCHANT` (`fees:read:own`).
+        **Roles permitidos:** `ADMINISTRATOR`, `BOARD` (lectura global), `PERSON` (`fees:read:own`).
       operationId: listFees
       tags: [Fees]
       security:
@@ -125,7 +125,7 @@ paths:
       description: |
         Genera una nueva cuota mensual de administración para una unidad específica. Si no se envía un monto explícito (`amount`), el servicio aplica automáticamente la tarifa diferenciada según `unitType` (`RESIDENTIAL` vs. `COMMERCIAL`).
 
-        **Roles permitidos:** `ADMIN` (`fees:create`).
+        **Roles permitidos:** `ADMINISTRATOR` (`fees:create`).
       operationId: generateFee
       tags: [Fees]
       security:
@@ -174,7 +174,7 @@ paths:
       description: |
         Retorna el detalle completo de una cuota de administración, incluyendo el cálculo de días de mora (`daysOverdue`), recargo por mora (`lateFeeAmount`) y total a pagar (`totalAmount`).
 
-        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER`, `RESIDENT` (`fees:read:own`), `MERCHANT` (`fees:read:own`).
+        **Roles permitidos:** `ADMINISTRATOR`, `BOARD`, `PERSON` (`fees:read:own`).
       operationId: getFeeById
       tags: [Fees]
       security:
@@ -201,7 +201,7 @@ paths:
       description: |
         Obtiene todas las cuotas históricas y vigentes asociadas a una unidad residencial o comercial específica (también accesible vía `/api/v1/fees/unit/{unitId}`).
 
-        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER`, `RESIDENT` (`fees:read:own`), `MERCHANT` (`fees:read:own`).
+        **Roles permitidos:** `ADMINISTRATOR`, `BOARD`, `PERSON` (`fees:read:own`).
       operationId: getFeesByUnit
       tags: [Fees]
       security:
@@ -233,7 +233,7 @@ paths:
       description: |
         Registra y confirma el pago de una cuota de administración pendiente o vencida, actualizando su estado a `PAID`.
 
-        **Roles permitidos:** `ADMIN`, `RESIDENT` (`fees:read:own`), `MERCHANT` (`fees:read:own`).
+        **Roles permitidos:** `ADMINISTRATOR`, `PERSON` (`fees:read:own`).
       operationId: payFee
       tags: [Fees]
       security:

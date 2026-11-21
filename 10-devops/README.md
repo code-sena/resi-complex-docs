@@ -33,17 +33,18 @@ Include: software prerequisites, environment variables, exact commands, how to v
 4. Wait for services to be ready: `./scripts/wait-for-services.sh`
 5. Verify: `curl http://localhost:8080/health`
 
-## Local ports
+## Local ports (Canonical — see `local-setup.md`)
 | Service | Port |
 |---------|------|
-| API Gateway | 8080 |
-| [Service 1] | 8001 |
-| RabbitMQ UI | 15672 |
-| Adminer (DB) | 8090 |
+| API Gateway | `8080` *(Windows fallback `8090`)* |
+| 9 Domain Microservices (`iam`..`reports`) | `8081`–`8089` |
+| MySQL 8.0 | `3306` |
+| RabbitMQ AMQP / Management UI | `5672` / `15672` |
+| Adminer (MySQL dev UI) | `8091` |
 
 ## Common issues
-- **Port in use:** `lsof -i :8080` to see what is using it
-- **DB not connecting:** verify Docker is running
+- **Port in use:** `netstat -ano | findstr :8080` (Windows) or `lsof -i :8080` (Linux/macOS)
+- **DB not connecting:** verify Docker MySQL 8 container is healthy (`docker compose ps`)
 ```
 
 ### `environments.md` ⭐

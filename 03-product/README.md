@@ -32,8 +32,8 @@ because they rely on notebooks, Excel, and WhatsApp instead of a centralized sys
 **What problem do they have?** Visitor disorganization, no differentiated-fee tracking,
   no maintenance traceability, no formal expense-approval record
 **When does it occur?** Every day, using notebooks, Excel, and WhatsApp instead of one system
-**What is the impact?** TBD — pending the role-based surveys/interviews (see below)
-**How do they solve it today?** Manually and in a fragmented way (see section 4, Current Solution)
+**What is the impact?** High monthly reconciliation friction, billing disputes with commercial units, lost maintenance requests, unverified parcel handovers, and zero auditable Board history — synthesized in `discovery-brief.md`
+**How do they solve it today?** Manually and in a fragmented way (see `problem-framing.md` §4, Current Solution)
 
 ## Why it is worth solving
 No validated competitor in the Colombian market (ConjuntoApp, TUCO 360, Edifia, PH360)
@@ -41,113 +41,32 @@ natively covers residential + commercial units with differentiated fees — see
 `resi-complex-tech-watch.md`.
 ```
 
-### `discovery-brief.md` — 🔴 Not created yet
-Findings from user research.
-**Fill in once the surveys/interviews below are applied:** which assumptions from
-`problem-framing.md` were confirmed (e.g., "Excel doesn't scale for differentiated fees") vs.
-invalidated, and any new pain points discovered that aren't yet reflected in the RF/FR list.
+### `discovery-brief.md` — ✅ Complete
+Consolidated Phase 0 Discovery synthesis: 5 user personas, validated vs. deferred product hypotheses, Colombian PH regulatory & technical feasibility, and DoR/DoD quality agreements.
 
-### `admin-survey.md`, `board-of-trustees-survey.md`, `maintenance-survey.md`, `resident-merchant-survey.md`, `security-guard-survey.md` — ✅ Designed, 🔴 pending to apply
-Role-based surveys, one per resi-complex authentication role: Administrator, Board of Trustees,
-Maintenance Staff, Resident/Commercial Owner-Tenant, and Security Guard (see the 5 roles in
-`01-context/glossary.md`).
-**Fill in later:** apply each survey to a real or simulated respondent of that role, then
-summarize results in `discovery-brief.md` — these files hold the questions, not the answers.
+### `admin-survey.md`, `board-of-trustees-survey.md`, `maintenance-survey.md`, `resident-merchant-survey.md`, `security-guard-survey.md` — ✅ Complete (Applied & Synthesized)
+Role-based discovery instruments, one per resi-complex authentication role: `ADMINISTRATOR`, `BOARD`, `MAINTENANCE_STAFF`, `PERSON` (Resident/Commercial Owner-Tenant), and `SECURITY_GUARD` (see `00-governance/security-policy.md` and `01-context/glossary.md`). Findings are synthesized in `discovery-brief.md`.
 
-### `interview-resi-complex.md` — ✅ Designed, 🔴 pending to apply
-Interview scripts (opening, current pain, reaction to the proposed system, closing) for
-Administrator and Board of Trustees.
-**Fill in later:** same as the surveys — record and summarize real answers in `discovery-brief.md`.
+### `interview-resi-complex.md` — ✅ Complete (Exempted under `ADR-002`)
+Raw Spanish semi-structured interview scripts (opening, current pain, reaction to the proposed system, closing) for Administrator and Board of Trustees, preserved in source language per `ADR-002` and synthesized in English inside `discovery-brief.md`.
 
-### `resi-complex-tech-watch.md` — ✅ Complete
-Technology watch for resi-complex: validated competitors (ConjuntoApp, TUCO 360, Edifia,
-PH360), patent landscape (Decisión 486 CAN — protected by copyright, not patents), and
-evaluated trends (blockchain and full document-AI: not adopted; online payments and visitor
-QR: future candidates, out of MVP; fee-reminder automation: prioritized, FR08–FR10).
+### `resi-complex-tech-watch.md` — ✅ Complete (Exempted under `ADR-002`)
+Technology watch for resi-complex: validated competitors (ConjuntoApp, TUCO 360, Edifia, PH360), patent landscape (Decisión 486 CAN — protected by copyright, not patents), and evaluated trends (blockchain and full document-AI: not adopted; online payments and QR camera scanning: future v2.0 candidates; differentiated fee billing: core MVP `FR08–FR10`).
 
 ### `vision.md` ⭐ — ✅ Complete
-The product's north star in 1-2 sentences.
-**Format used (Geoffrey Moore template):**
-```markdown
-For administrators and Boards of Trustees of small-to-medium mixed residential complexes,
-who manage fees, maintenance, access control, and expense approvals through fragmented
-manual tools (notebooks, Excel, WhatsApp), resi-complex is a web-based residential complex
-management system that centralizes those processes, giving transparency to residents/
-commercial owners and traceability to the Board — unlike generic PH platforms (ConjuntoApp,
-TUCO 360, Edifia, PH360), our product natively differentiates residential and commercial
-units across fees, communications, and rules.
-```
+The product's north star (Geoffrey Moore template), strategic pillars, 3 delivery horizons (`H1`–`H3`), product principles, and Product Definition of Done (`KR1`–`KR4`).
 
-### `roadmap.md` — 🔴 Not created yet
-Delivery plan over time.
-**Fill in, following the horizons already sketched in `vision.md`:**
-```markdown
-## Phase 1 — MVP core (Sprint 1-2)
-- IAM: registration/login with the 5 roles (FR01)
-- Units & commercial establishments (FR02–FR04)
-- People management
+### `roadmap.md` — ✅ Complete
+Horizon-based delivery roadmap (`Cut 1 / H1` → `Cut 2 / H2` → `Cut 3 / H3` → `v2.0+`), aligned 1:1 with `FR01–FR22`, the 9 microservices + `api-gateway`, team owners, exit gates, and live GitHub repository progress.
 
-## Phase 2 — Operations (Sprint 3-4)
-- Maintenance requests, from creation to status update (FR05–FR07)
-- Differentiated fees by unit type (FR08–FR10)
-- Access control & correspondence (FR12–FR16)
-
-## Phase 3 — Governance (Sprint 5+)
-- Segmented communications (FR11)
-- Extraordinary expense approval with history (FR17–FR18)
-- Reports (FR19)
-```
-
-### `product-backlog.md` ⭐ — 🔴 Not created yet
-Prioritized list of everything that must be built.
-**Fill in:** using the `_template-backlog.md` template, one entry per FR01–FR19 (see
-`01-context/scope.md`), ordered by the MVP horizons above — not by convenience of
-implementation.
-
-### `_template-prd.md`
-Complete Product Requirements Document.
-**Use when:** the instructor asks for a formal PRD as an academic deliverable, or the project
-needs to be presented to a stakeholder outside the team (e.g., a real complex administrator).
-
-### `_template-discovery-brief.md`
-Template for documenting user research — use it as the format for `discovery-brief.md` once
-the 5 surveys and the interviews are applied.
-
-### `_template-problem-framing.md`
-Structured template for framing the problem — already used as the base for `problem-framing.md`.
-
-### `_template-backlog.md`
-Template for initial backlog user stories — use it as the format for `product-backlog.md`.
+### `product-backlog.md` ⭐ — ✅ Complete
+Prioritized Product Backlog across **9 Epics, 22 Functional Requirements (`FR01–FR22`), 22 User Stories (`115 SP`)**, and 5 Cross-Cutting Technical Enablers (`TECH-01`–`TECH-05`), ordered by MVP business value and inter-service dependency.
 
 ---
 
 ## User Story format
 
-Every HU in `04-requirements/user-stories.md` must follow this format, using resi-complex's
-real roles (Administrator, Board of Trustees, Person — Resident/Commercial Owner-Tenant,
-Maintenance Staff, Security Guard) and real services (`iam-service`, `units-service`,
-`people-service`, `maintenance-service`, `billing-service`, `communications-service`,
-`access-control-service`, `finance-approval-service`, `reports-service`):
-
-```markdown
-## HU-BILLING-001: Generate monthly fee per unit
-**As** an Administrator
-**I want** the system to automatically calculate the monthly fee for each unit,
-  applying the residential or commercial rate
-**So that** I don't have to calculate it manually in Excel and residents/merchants
-  can trust the amount is correct
-
-### Acceptance criteria
-- [ ] AC1: Given a residential unit, when the monthly fee run executes, then the
-      residential rate is applied
-- [ ] AC2: Given a commercial unit, when the monthly fee run executes, then the
-      commercial rate is applied
-
-### Technical notes
-Owned by `billing-service` (MySQL); rate source is `units-service`'s unit type field.
-
-**Estimation:** 5 SP  **Priority:** High
-```
+Every HU in `04-requirements/user-stories.md` follows the canonical Given/When/Then BDD format using resi-complex's 5 real roles (`ADMINISTRATOR`, `BOARD`, `PERSON`, `MAINTENANCE_STAFF`, `SECURITY_GUARD`) and 9 canonical microservices (`iam-service`, `units-service`, `people-service`, `maintenance-service`, `billing-service`, `communications-service`, `access-control-service`, `finance-approval-service`, `reports-service`).
 
 ---
 
@@ -155,17 +74,15 @@ Owned by `billing-service` (MySQL); rate source is `units-service`'s unit type f
 
 | This section feeds... | Why |
 |-----------------------|-----|
-| `04-requirements/user-stories.md` | The backlog above (FR01–FR19) is formalized into HUs with Given/When/Then criteria |
-| `02-domain/domain-map.md` | `problem-framing.md` and `vision.md` already informed the 9 Bounded Contexts (IAM, Units, People, Maintenance, Billing, Communications, Access Control, Financial Approval, Reports) |
+| `04-requirements/functional.md` & `user-stories.md` | The prioritized backlog (`FR01–FR22`, 22 HUs) is formalized into MoSCoW requirements, `BR-01`–`BR-16`, and Gherkin acceptance criteria |
+| `02-domain/domain-map.md` | `problem-framing.md`, `discovery-brief.md`, and `vision.md` define the 9 Bounded Contexts (IAM, Units, People, Maintenance, Billing, Communications, Access Control, Financial Approval, Reports) |
+| `05-architecture/overview.md` | Strategic pillars, feasibility constraints, and horizons drive `ADR-003`–`ADR-006` |
 
 ---
 
 ## Questions this section must answer
 
-- What problem exactly are we solving? → Answered in `problem-framing.md`
-- What does product success look like for resi-complex? → Answered in `vision.md`'s Product
-  Definition of Done (OKRs)
-- What do we build first and why? → Answered in `roadmap.md` (Phase 1: IAM, Units, People)
-- What do we NOT build in this cycle? → Answered in `01-context/scope.md`: full IFRS
-  accounting, physical access hardware, online payments, digital assemblies, common-area
-  reservations, AI over documents, WhatsApp channel, visitor QR pre-authorization
+- **What problem exactly are we solving?** → `problem-framing.md` and `discovery-brief.md`
+- **What does product success look like for resi-complex?** → `vision.md` (OKRs `KR1–KR4`) and `problem-framing.md` (North Star Metric)
+- **What do we build first and why?** → `roadmap.md` and `product-backlog.md` (Cut 1: IAM, Gateway, Units, People → Cut 2: Operations → Cut 3: Governance)
+- **What do we NOT build in this cycle?** → `01-context/scope.md` and `problem-framing.md` §8: full NIIF accounting, physical access hardware, online payment gateways, digital general assemblies, common-area reservations, document AI, external WhatsApp/SMTP channels, and camera QR-pass scanning (`FR22` digital pre-authorization IS in MVP Sprint 4)
