@@ -1,0 +1,411 @@
+openapi: 3.0.3
+info:
+  title: Billing Service API
+  version: 1.0.0
+  description: |
+    Servicio de facturación y cuotas de administración (`resi-complex-billing-service`):
+    generación mensual de cuotas con tarifas diferenciadas entre unidades residenciales (`RESIDENTIAL`)
+    y establecimientos comerciales (`COMMERCIAL`), consulta de estado de cuenta, cálculo de mora
+    y registro/verificación de pagos (`FR08`, `FR09`, `FR10`).
+
+    ## Autenticación
+    Todos los endpoints de negocio requieren un JWT válido en el header:
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    ## Reglas de Dominio Clave
+    - **Tarifa diferenciada congelada al generar (`BR-10`):** El tipo de unidad (`RESIDENTIAL` o `COMMERCIAL`) y la tarifa aplicada quedan registrados en la cuota al momento de su emisión.
+    - **No duplicidad de período (`BR-10`):** Solo puede existir una cuota por `(unitId, billingYear, billingMonth)`.
+    - **Visibilidad por propiedad/ocupación (`BR-12`):** `RESIDENT` y `MERCHANT` solo pueden consultar y reportar pagos de sus propias unidades (`fees:read:own`).
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://127.0.0.1:8084
+    description: Local development
+  - url: https://api.dev.{domain}/api/v1
+    description: Development
+    variables:
+      domain:
+        default: resicomplex.local
+  - url: https://api.{domain}/api/v1
+    description: Production
+    variables:
+      domain:
+        default: resicomplex.com
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Fees
+    description: Generación, consulta y pago de cuotas de administración
+  - name: Health
+    description: Estado de salud del servicio
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Verifica el estado del servicio de facturación y su conexión con MySQL (`billing_db`).
+      operationId: checkBillingHealth
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  service:
+                    type: string
+                    example: billing-service
+                  db:
+                    type: string
+                    enum: [connected, disconnected]
+              example:
+                status: ok
+                service: billing-service
+                db: connected
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '503':
+          description: Servicio no disponible o base de datos desconectada
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/fees:
+    get:
+      summary: Listar cuotas de administración
+      description: |
+        Retorna la lista de cuotas de administración registradas en el conjunto, con filtros opcionales por estado (`PENDING`, `PAID`, `OVERDUE`), tipo de unidad o período.
+
+        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (lectura global), `RESIDENT` (`fees:read:own`), `MERCHANT` (`fees:read:own`).
+      operationId: listFees
+      tags: [Fees]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filtrar cuotas por estado de pago
+          schema:
+            $ref: '#/components/schemas/FeeStatus'
+        - $ref: './_shared.yaml#/components/parameters/PageParam'
+        - $ref: './_shared.yaml#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Lista de cuotas obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeeResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '500':
+          $ref: './_shared.yaml#/components/responses/InternalError'
+
+    post:
+      summary: Generar cuota de administración
+      description: |
+        Genera una nueva cuota mensual de administración para una unidad específica. Si no se envía un monto explícito (`amount`), el servicio aplica automáticamente la tarifa diferenciada según `unitType` (`RESIDENTIAL` vs. `COMMERCIAL`).
+
+        **Roles permitidos:** `ADMIN` (`fees:create`).
+      operationId: generateFee
+      tags: [Fees]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateFeeRequest'
+            example:
+              unitId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+              unitType: "COMMERCIAL"
+              amount: 450000.00
+              billingMonth: 11
+              billingYear: 2026
+              dueDate: "2026-11-30"
+      responses:
+        '201':
+          description: Cuota generada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '409':
+          description: Ya existe una cuota generada para esta unidad en el mismo período (`billingMonth` y `billingYear`)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+              example:
+                error: FEE_ALREADY_EXISTS
+                message: Fee already exists for this unit and billing period
+        '500':
+          $ref: './_shared.yaml#/components/responses/InternalError'
+
+  /api/v1/fees/{id}:
+    get:
+      summary: Obtener detalle de una cuota por ID
+      description: |
+        Retorna el detalle completo de una cuota de administración, incluyendo el cálculo de días de mora (`daysOverdue`), recargo por mora (`lateFeeAmount`) y total a pagar (`totalAmount`).
+
+        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER`, `RESIDENT` (`fees:read:own`), `MERCHANT` (`fees:read:own`).
+      operationId: getFeeById
+      tags: [Fees]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Detalle de la cuota encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+  /api/v1/units/{unitId}/fees:
+    get:
+      summary: Consultar estado de cuenta por unidad
+      description: |
+        Obtiene todas las cuotas históricas y vigentes asociadas a una unidad residencial o comercial específica (también accesible vía `/api/v1/fees/unit/{unitId}`).
+
+        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER`, `RESIDENT` (`fees:read:own`), `MERCHANT` (`fees:read:own`).
+      operationId: getFeesByUnit
+      tags: [Fees]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: unitId
+          in: path
+          required: true
+          description: Identificador único de la unidad (UUID)
+          schema:
+            $ref: './_shared.yaml#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Lista de cuotas de la unidad obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeeResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+
+  /api/v1/fees/{id}/pay:
+    patch:
+      summary: Registrar pago de cuota de administración
+      description: |
+        Registra y confirma el pago de una cuota de administración pendiente o vencida, actualizando su estado a `PAID`.
+
+        **Roles permitidos:** `ADMIN`, `RESIDENT` (`fees:read:own`), `MERCHANT` (`fees:read:own`).
+      operationId: payFee
+      tags: [Fees]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayFeeRequest'
+            example:
+              paymentReference: "PSE-20261120-99481"
+              paymentMethod: "PSE"
+      responses:
+        '200':
+          description: Pago registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+        '409':
+          description: La cuota ya se encuentra pagada (`PAID`)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+              example:
+                error: FEE_ALREADY_PAID
+                message: Fee is already paid
+
+components:
+  schemas:
+    UnitType:
+      type: string
+      description: Clasificación de la unidad para tarifa diferenciada
+      enum:
+        - RESIDENTIAL
+        - COMMERCIAL
+      example: RESIDENTIAL
+
+    FeeStatus:
+      type: string
+      description: Estado del ciclo de vida de la cuota de administración
+      enum:
+        - PENDING
+        - PAID
+        - OVERDUE
+      example: PENDING
+
+    GenerateFeeRequest:
+      type: object
+      required:
+        - unitId
+        - unitType
+        - billingMonth
+        - billingYear
+        - dueDate
+      properties:
+        unitId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        unitType:
+          $ref: '#/components/schemas/UnitType'
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+          nullable: true
+          description: Monto base de la cuota en COP. Si se omite, se aplica tarifa estándar por tipo de unidad (250000.00 RESIDENTIAL / 450000.00 COMMERCIAL).
+          example: 250000.00
+        billingMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: Mes del período facturado (1 a 12)
+          example: 11
+        billingYear:
+          type: integer
+          minimum: 2000
+          maximum: 2100
+          description: Año del período facturado
+          example: 2026
+        dueDate:
+          type: string
+          format: date
+          description: Fecha límite de pago oportuno
+          example: "2026-11-30"
+
+    PayFeeRequest:
+      type: object
+      properties:
+        paymentReference:
+          type: string
+          maxLength: 100
+          description: Referencia o número de comprobante de la transacción
+          example: "PSE-20261120-99481"
+        paymentMethod:
+          type: string
+          maxLength: 50
+          description: Medio de pago utilizado (PSE, TRANSFER, CASH)
+          example: "PSE"
+
+    FeeResponse:
+      type: object
+      required:
+        - id
+        - unitId
+        - amount
+        - unitType
+        - billingMonth
+        - billingYear
+        - dueDate
+        - status
+        - overdue
+        - daysOverdue
+        - lateFeeAmount
+        - totalAmount
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        unitId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        amount:
+          type: number
+          format: double
+          description: Valor base de la cuota según tarifa residencial o comercial
+          example: 250000.00
+        unitType:
+          $ref: '#/components/schemas/UnitType'
+        billingMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 11
+        billingYear:
+          type: integer
+          example: 2026
+        dueDate:
+          type: string
+          format: date
+          example: "2026-11-30"
+        status:
+          $ref: '#/components/schemas/FeeStatus'
+        overdue:
+          type: boolean
+          description: Indica si la cuota se encuentra vencida a la fecha actual
+          example: false
+        daysOverdue:
+          type: integer
+          format: int64
+          description: Días transcurridos desde la fecha de vencimiento
+          example: 0
+        lateFeeAmount:
+          type: number
+          format: double
+          description: Recargo acumulado por mora
+          example: 0.00
+        totalAmount:
+          type: number
+          format: double
+          description: Valor total a pagar (amount + lateFeeAmount)
+          example: 250000.00
+
+  securitySchemes:
+    bearerAuth:
+      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'
