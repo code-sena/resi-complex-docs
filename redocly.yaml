@@ -6,3 +6,7 @@ apis:
     root: 07-api/contracts/openapi/auth-service.yaml
   billing-service:
     root: 07-api/contracts/openapi/billing-service.yaml
+  finance-service:
+    root: 07-api/contracts/openapi/finance-service.yaml
+  reports-service:
+    root: 07-api/contracts/openapi/reports-service.yaml
