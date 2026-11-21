@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>resi-complex — UI Kit de Componentes Obligatorios</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#1A5FB4',
+              dark: '#0B2E5C',
+              light: '#E8F0FE',
+            },
+            mutedGreen: '#2E7D5B',
+            canvas: '#F7F8FA',
+            borderSubtle: '#E2E6EC',
+            textPrimary: '#1C1E21',
+            textSecondary: '#5F6368',
+            textDisabled: '#9AA0A6',
+            semantic: {
+              success: '#2E7D32',
+              warning: '#B98900',
+              error: '#C62828',
+              info: '#1A5FB4',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #F7F8FA;
+      color: #1C1E21;
+      font-family: 'Inter', sans-serif;
+    }
+    .mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+    .skeleton-pulse {
+      animation: pulse-subtle 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-6 md:p-10 antialiased selection:bg-brand-light selection:text-brand-dark">
+
+  <!-- Header del UI Kit -->
+  <header class="max-w-7xl mx-auto mb-10 pb-6 border-b border-borderSubtle">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-brand flex items-center justify-center text-white font-bold text-base shadow-sm">
+            rc
+          </div>
+          <h1 class="text-2xl font-bold tracking-tight text-textPrimary">resi-complex</h1>
+          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand-light text-brand border border-brand/20">
+            Design System v1.0
+          </span>
+        </div>
+        <p class="text-sm text-textSecondary mt-2">
+          UI Kit Oficial — Especificación y vitrina de los 5 componentes obligatorios (<span class="mono-code text-xs text-textPrimary">Badge</span>, <span class="mono-code text-xs text-textPrimary">Toast</span>, <span class="mono-code text-xs text-textPrimary">Modal</span>, <span class="mono-code text-xs text-textPrimary">Tooltip</span>, <span class="mono-code text-xs text-textPrimary">Skeleton Loader</span>).
+        </p>
+      </div>
+
+      <div class="flex items-center gap-4 text-xs text-textSecondary">
+        <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-borderSubtle shadow-sm">
+          <span class="w-2.5 h-2.5 rounded-full bg-semantic-success inline-block"></span>
+          <span>WCAG AA Conforme</span>
+        </div>
+        <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-borderSubtle shadow-sm font-mono text-[11px]">
+          <span>Grid: 4px | Radius: 8px/16px</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto space-y-10">
+
+    <!-- 1. BADGES -->
+    <section class="bg-white rounded-lg border border-borderSubtle p-6 md:p-8 shadow-sm">
+      <div class="flex items-center justify-between pb-4 mb-6 border-b border-borderSubtle">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded bg-brand/10 text-brand text-xs font-semibold flex items-center justify-center">1</span>
+            <h2 class="text-lg font-semibold text-textPrimary">Badges</h2>
+          </div>
+          <p class="text-xs text-textSecondary mt-1">Pill-shaped (border-radius 9999px), 12px medium text con fondo sutil e indicador de estado.</p>
+        </div>
+        <span class="mono-code text-xs text-textSecondary bg-canvas px-2.5 py-1 rounded border border-borderSubtle">Pill-shape • 12px Medium</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Status Badges -->
+        <div class="space-y-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-textSecondary">Status Badges</h3>
+          <div class="flex flex-wrap gap-2.5 pt-1">
+            <!-- PENDING -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#FFF8E6] text-[#B98900] border border-[#B98900]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#B98900]"></span>
+              PENDING
+            </span>
+            <!-- ASSIGNED -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#E8F0FE] text-[#1A5FB4] border border-[#1A5FB4]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#1A5FB4]"></span>
+              ASSIGNED
+            </span>
+            <!-- IN_PROGRESS -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#E8F0FE] text-[#1A5FB4] border border-[#1A5FB4]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#1A5FB4]"></span>
+              IN_PROGRESS
+            </span>
+            <!-- UNDER_REVIEW -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#E8F0FE] text-[#1A5FB4] border border-[#1A5FB4]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#1A5FB4]"></span>
+              UNDER_REVIEW
+            </span>
+            <!-- RESOLVED -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#EAF5EA] text-[#2E7D32] border border-[#2E7D32]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#2E7D32]"></span>
+              RESOLVED
+            </span>
+            <!-- PAID -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#EAF5EA] text-[#2E7D32] border border-[#2E7D32]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#2E7D32]"></span>
+              PAID
+            </span>
+            <!-- APPROVED -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#EAF5EA] text-[#2E7D32] border border-[#2E7D32]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#2E7D32]"></span>
+              APPROVED
+            </span>
+            <!-- OVERDUE -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#FDEAEA] text-[#C62828] border border-[#C62828]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#C62828]"></span>
+              OVERDUE
+            </span>
+            <!-- REJECTED -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#FDEAEA] text-[#C62828] border border-[#C62828]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#C62828]"></span>
+              REJECTED
+            </span>
+          </div>
+        </div>
+
+        <!-- Priority Badges -->
+        <div class="space-y-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-textSecondary">Priority Badges</h3>
+          <div class="flex flex-wrap gap-2.5 pt-1">
+            <!-- LOW -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#F1F3F4] text-[#5F6368] border border-[#DADCE0]">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#5F6368]"></span>
+              LOW
+            </span>
+            <!-- MEDIUM -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#E8F0FE] text-[#1A5FB4] border border-[#1A5FB4]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#1A5FB4]"></span>
+              MEDIUM
+            </span>
+            <!-- HIGH -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#FFF8E6] text-[#B98900] border border-[#B98900]/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#B98900]"></span>
+              HIGH
+            </span>
+            <!-- URGENT -->
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FDEAEA] text-[#C62828] border-2 border-[#C62828]">
+              <span class="w-2 h-2 rounded-full bg-[#C62828] animate-pulse"></span>
+              URGENT
+            </span>
+          </div>
+        </div>
+
+        <!-- Unit Type Badges -->
+        <div class="space-y-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-textSecondary">Unit Type Badges</h3>
+          <div class="flex flex-wrap gap-2.5 pt-1">
+            <!-- RESIDENTIAL -->
+            <span class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium bg-[#EAF2ED] text-[#2E7D5B] border border-[#2E7D5B]/30">
+              <i data-lucide="home" class="w-3.5 h-3.5 stroke-[2]"></i>
+              RESIDENTIAL
+            </span>
+            <!-- COMMERCIAL -->
+            <span class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium bg-[#E8F0FE] text-[#1A5FB4] border border-[#1A5FB4]/30">
+              <i data-lucide="building-2" class="w-3.5 h-3.5 stroke-[2]"></i>
+              COMMERCIAL
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. TOAST NOTIFICATIONS & 4. TOOLTIP (Fila Combinada) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      <!-- TOAST NOTIFICATIONS (Col 7) -->
+      <section class="lg:col-span-7 bg-white rounded-lg border border-borderSubtle p-6 md:p-8 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between pb-4 mb-6 border-b border-borderSubtle">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded bg-brand/10 text-brand text-xs font-semibold flex items-center justify-center">2</span>
+                <h2 class="text-lg font-semibold text-textPrimary">Toast Notifications</h2>
+              </div>
+              <p class="text-xs text-textSecondary mt-1">Tarjetas flotantes (8px radius, auto-dismiss 4s, feedback contextual).</p>
+            </div>
+            <span class="mono-code text-xs text-textSecondary bg-canvas px-2.5 py-1 rounded border border-borderSubtle">Fixed bottom-right</span>
+          </div>
+
+          <div class="space-y-4">
+            <!-- Success Toast (Dark Surface) -->
+            <div class="bg-[#1C1E21] text-white p-4 rounded-lg shadow-lg flex items-center justify-between gap-4 border border-white/10">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 rounded-full bg-[#2E7D32]/20 flex items-center justify-center text-[#4ADE80] shrink-0">
+                  <i data-lucide="check" class="w-4 h-4 stroke-[2.5]"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-medium leading-none">Maintenance request created.</p>
+                  <p class="text-xs text-gray-400 mt-1">Ticket #REQ-042 registrado con éxito.</p>
+                </div>
+              </div>
+              <button class="text-gray-400 hover:text-white transition-colors p-1">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Error Toast (White Surface con Red Accent) -->
+            <div class="bg-white text-textPrimary p-4 rounded-lg shadow-lg flex items-center justify-between gap-4 border-l-4 border-l-[#C62828] border border-borderSubtle">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 rounded-full bg-[#FDEAEA] flex items-center justify-center text-[#C62828] shrink-0">
+                  <i data-lucide="alert-circle" class="w-4 h-4 stroke-[2.5]"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-medium leading-none">Could not save changes.</p>
+                  <p class="text-xs text-textSecondary mt-1">Error de conexión con el servicio de gastos.</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button class="text-xs font-semibold text-brand hover:text-brand-dark px-2 py-1 rounded transition-colors">
+                  Retry
+                </button>
+                <button class="text-textSecondary hover:text-textPrimary p-1">
+                  <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Warning/Network Toast -->
+            <div class="bg-white text-textPrimary p-3.5 rounded-lg shadow-md flex items-center justify-between gap-3 border border-borderSubtle">
+              <div class="flex items-center gap-3">
+                <div class="w-2.5 h-2.5 rounded-full bg-[#B98900] animate-pulse"></div>
+                <p class="text-xs font-medium text-textPrimary">No connection. Retrying in 4s...</p>
+              </div>
+              <span class="mono-code text-[11px] text-textSecondary bg-canvas px-2 py-0.5 rounded border border-borderSubtle">Offline</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. TOOLTIP (Col 5) -->
+      <section class="lg:col-span-5 bg-white rounded-lg border border-borderSubtle p-6 md:p-8 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between pb-4 mb-6 border-b border-borderSubtle">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded bg-brand/10 text-brand text-xs font-semibold flex items-center justify-center">4</span>
+                <h2 class="text-lg font-semibold text-textPrimary">Tooltip</h2>
+              </div>
+              <p class="text-xs text-textSecondary mt-1">Popover oscuro (#1C1E21, 4px radius, flecha indicadora).</p>
+            </div>
+            <span class="mono-code text-xs text-textSecondary bg-canvas px-2.5 py-1 rounded border border-borderSubtle">12px Text</span>
+          </div>
+
+          <div class="bg-canvas rounded-lg p-6 border border-borderSubtle flex flex-col items-center justify-center min-h-[190px] relative">
+            
+            <!-- Tooltip Popover Box con Flecha -->
+            <div class="relative z-10 mb-2">
+              <div class="bg-[#1C1E21] text-white text-xs px-3.5 py-2 rounded shadow-xl max-w-xs text-center leading-relaxed">
+                Only Board members can approve or reject proposals.
+                <!-- Arrow pointer -->
+                <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-[#1C1E21]"></div>
+              </div>
+            </div>
+
+            <!-- Trigger Demo -->
+            <div class="flex items-center gap-2 bg-white px-3.5 py-2 rounded-md border border-borderSubtle shadow-sm mt-1">
+              <span class="text-xs font-medium text-textSecondary">Rechazar propuesta</span>
+              <button class="text-textSecondary hover:text-brand focus:outline-none flex items-center justify-center p-0.5 rounded" title="Ver detalles">
+                <i data-lucide="info" class="w-4 h-4 stroke-[2]"></i>
+              </button>
+            </div>
+            
+            <span class="text-[11px] text-textSecondary mt-3 text-center">Estado hover simulado para demostración</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- 3. MODAL (Centrado en Vitrina) -->
+    <section class="bg-white rounded-lg border border-borderSubtle p-6 md:p-8 shadow-sm">
+      <div class="flex items-center justify-between pb-4 mb-6 border-b border-borderSubtle">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded bg-brand/10 text-brand text-xs font-semibold flex items-center justify-center">3</span>
+            <h2 class="text-lg font-semibold text-textPrimary">Modal (Destructive Confirmation)</h2>
+          </div>
+          <p class="text-xs text-textSecondary mt-1">Diálogo centrado (16px radius, dimmed overlay rgba(28,30,33,0.5), foco destructivo).</p>
+        </div>
+        <span class="mono-code text-xs text-textSecondary bg-canvas px-2.5 py-1 rounded border border-borderSubtle">16px Radius • Shadow-LG</span>
+      </div>
+
+      <!-- Backdrop visual representativo -->
+      <div class="relative rounded-xl overflow-hidden bg-slate-800/40 p-6 md:p-12 border border-borderSubtle flex items-center justify-center">
+        
+        <!-- Faux Background Card behind Modal (para contexto) -->
+        <div class="absolute inset-4 bg-white/70 backdrop-blur-[2px] rounded-lg p-6 pointer-events-none opacity-40 select-none">
+          <div class="flex justify-between items-center pb-4 border-b border-gray-300">
+            <div class="h-4 w-32 bg-gray-300 rounded"></div>
+            <div class="h-6 w-20 bg-gray-300 rounded-full"></div>
+          </div>
+          <div class="h-3 w-48 bg-gray-200 rounded mt-4"></div>
+          <div class="h-3 w-64 bg-gray-200 rounded mt-2"></div>
+        </div>
+
+        <!-- Ventana Modal Real -->
+        <div class="relative z-10 bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-borderSubtle overflow-hidden">
+          <!-- Modal Header -->
+          <div class="px-6 pt-6 pb-4 flex items-start justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-[#FDEAEA] text-[#C62828] flex items-center justify-center shrink-0">
+                <i data-lucide="alert-triangle" class="w-5 h-5 stroke-[2]"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-semibold text-textPrimary">Reject expense proposal?</h3>
+                <span class="mono-code text-xs text-textSecondary">EXP-12 • Roof Waterproofing — Tower B</span>
+              </div>
+            </div>
+            <button class="text-textSecondary hover:text-textPrimary p-1 rounded-md transition-colors">
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="px-6 py-2 space-y-4">
+            <p class="text-sm text-textSecondary leading-relaxed">
+              This action is irreversible. The proposal will be marked as <span class="font-semibold text-textPrimary">REJECTED</span> and the Administrator will be notified immediately.
+            </p>
+
+            <div>
+              <label class="block text-xs font-medium text-textSecondary mb-1.5">
+                Rejection justification note (optional)
+              </label>
+              <textarea 
+                rows="2" 
+                class="w-full text-xs text-textPrimary rounded-md border border-borderSubtle px-3 py-2 focus:outline-none focus:border-brand transition-colors placeholder:text-textDisabled"
+                placeholder="Indique los motivos de la resolución del comité..."></textarea>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="px-6 py-4 bg-canvas/60 border-t border-borderSubtle flex items-center justify-end gap-3 mt-4">
+            <button class="px-4 py-2 text-xs font-medium text-textSecondary hover:text-textPrimary bg-white border border-borderSubtle rounded-md hover:bg-gray-50 transition-colors shadow-sm">
+              Cancel
+            </button>
+            <button class="px-4 py-2 text-xs font-medium text-white bg-[#C62828] hover:bg-[#b02020] rounded-md transition-colors shadow-sm flex items-center gap-1.5">
+              <i data-lucide="slash" class="w-3.5 h-3.5"></i>
+              Confirm rejection
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 5. SKELETON LOADER -->
+    <section class="bg-white rounded-lg border border-borderSubtle p-6 md:p-8 shadow-sm">
+      <div class="flex items-center justify-between pb-4 mb-6 border-b border-borderSubtle">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded bg-brand/10 text-brand text-xs font-semibold flex items-center justify-center">5</span>
+            <h2 class="text-lg font-semibold text-textPrimary">Skeleton Loader</h2>
+          </div>
+          <p class="text-xs text-textSecondary mt-1">Estados de carga sutiles con barras redondeadas suaves (#E8ECEF) y animación sutil de pulso.</p>
+        </div>
+        <span class="mono-code text-xs text-textSecondary bg-canvas px-2.5 py-1 rounded border border-borderSubtle">#E8ECEF • Pulse state</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- KPI Card Skeleton -->
+        <div class="bg-white p-5 rounded-lg border border-borderSubtle shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="h-3.5 w-28 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+            <div class="w-6 h-6 bg-[#E8ECEF] rounded-full skeleton-pulse"></div>
+          </div>
+          <div class="h-7 w-20 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+          <div class="flex items-center gap-2">
+            <div class="h-3 w-12 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+            <div class="h-3 w-24 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+          </div>
+        </div>
+
+        <!-- Table Skeleton Loader (Abarca 2 columnas) -->
+        <div class="lg:col-span-2 bg-white rounded-lg border border-borderSubtle overflow-hidden shadow-sm">
+          <div class="p-4 border-b border-borderSubtle flex items-center justify-between bg-canvas/40">
+            <div class="h-4 w-36 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+            <div class="h-6 w-20 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+          </div>
+          <div class="divide-y divide-borderSubtle">
+            <!-- Row 1 -->
+            <div class="p-3.5 flex items-center justify-between gap-4">
+              <div class="h-3.5 w-16 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+              <div class="h-3.5 w-48 bg-[#E8ECEF] rounded skeleton-pulse flex-1 max-w-sm"></div>
+              <div class="h-5 w-20 bg-[#E8ECEF] rounded-full skeleton-pulse"></div>
+              <div class="h-7 w-16 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+            </div>
+            <!-- Row 2 -->
+            <div class="p-3.5 flex items-center justify-between gap-4">
+              <div class="h-3.5 w-16 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+              <div class="h-3.5 w-40 bg-[#E8ECEF] rounded skeleton-pulse flex-1 max-w-sm"></div>
+              <div class="h-5 w-24 bg-[#E8ECEF] rounded-full skeleton-pulse"></div>
+              <div class="h-7 w-16 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+            </div>
+            <!-- Row 3 -->
+            <div class="p-3.5 flex items-center justify-between gap-4">
+              <div class="h-3.5 w-16 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+              <div class="h-3.5 w-52 bg-[#E8ECEF] rounded skeleton-pulse flex-1 max-w-sm"></div>
+              <div class="h-5 w-16 bg-[#E8ECEF] rounded-full skeleton-pulse"></div>
+              <div class="h-7 w-16 bg-[#E8ECEF] rounded skeleton-pulse"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Footer de Documentación -->
+    <footer class="pt-6 pb-12 text-center text-xs text-textSecondary border-t border-borderSubtle">
+      <p>resi-complex • Component Library aligned with <span class="mono-code text-[11px] text-textPrimary">12-ux-ui/design-system.md</span> y <span class="mono-code text-[11px] text-textPrimary">12-ux-ui/navigation-map.md</span></p>
+    </footer>
+
+  </main>
+
+  <script>
+    // Inicializar iconos de Lucide
+    lucide.createIcons();
+  </script>
+</body>
+</html>
