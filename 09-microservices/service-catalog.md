@@ -39,6 +39,8 @@
 | 02 | `auth-service` | Registration, login, JWT tokens, RBAC | 8081 | MySQL | Relational | 🟢 Active |
 | 06 | `billing-service` | Monthly administration fees with differentiated residential and commercial tariffs | 8084 | MySQL (`billing_db`) | Relational | 🟢 Active |
 | 07 | `finance-approval-service` | Extraordinary expense proposals and immutable Board member voting | 8088 | MySQL (`finance_db`) | Relational | 🟢 Active |
+| 08 | `communications-service` | Segmented announcements (all, residential, commercial) | 8082 | MySQL (`communications_db`) | Relational | 🟢 Active |
+| 09 | `access-control-service` | Visitor, vehicle entry/exit, front desk correspondence | 8087 | MySQL (`access_control_db`) | Relational | 🟢 Active |
 | 10 | `reports-service` | Executive CQRS read projections for fee arrears and maintenance statistics | 8089 | MySQL (`reports_db`) | Relational | 🟢 Active |
 
 **Statuses:** 🟢 Active in prod | 🟡 In development | 🔴 Planned | ⏸ Deprecated
@@ -167,6 +169,60 @@
 - `ExpenseProposalCreated` → Topic: `finance.expense.created`
 - `ExpenseProposalApproved` → Topic: `finance.expense.approved`
 - `ExpenseProposalRejected` → Topic: `finance.expense.rejected`
+
+---
+
+### 08 — `communications-service`
+
+| Field | Value |
+|-------|-------|
+| **Folder** | `09-microservices/services/08-communications-service/` |
+| **Responsibility** | Manage official announcements and community communications with audience segmentation |
+| **Type** | Supporting service |
+| **Port** | 8082 |
+| **Technology** | Java 17+, Spring Boot 3.x, Spring Data JPA, Hibernate, Flyway |
+| **DB** | MySQL 8.0 (`communications_db`) |
+| **Bounded Context** | `02-domain/domain-map.md` → Communications Context |
+| **Externally exposed** | Yes (via API Gateway :8080) |
+
+**Key endpoints:**
+- `POST /api/v1/announcements` — Publish a new segmented announcement
+- `GET /api/v1/announcements` — Query announcements filtered by unit type
+- `GET /api/v1/announcements/{id}` — Get single announcement detail
+- `PUT /api/v1/announcements/{id}` — Update announcement content/scope
+- `DELETE /api/v1/announcements/{id}` — Soft delete announcement
+
+**Events published:**
+- `AnnouncementPublished` → Topic: `communications.announcement.published`
+
+---
+
+### 09 — `access-control-service`
+
+| Field | Value |
+|-------|-------|
+| **Folder** | `09-microservices/services/09-access-control-service/` |
+| **Responsibility** | Manage visitor and vehicle ingress/egress and front desk correspondence / parcel receipt |
+| **Type** | Supporting service |
+| **Port** | 8087 |
+| **Technology** | Java 17+, Spring Boot 3.x, Spring Data JPA, Hibernate, Flyway |
+| **DB** | MySQL 8.0 (`access_control_db`) |
+| **Bounded Context** | `02-domain/domain-map.md` → Access Control Context |
+| **Externally exposed** | Yes (via API Gateway :8080) |
+
+**Key endpoints:**
+- `POST /api/v1/visits` — Register incoming visitor admission
+- `GET /api/v1/visits/active` — List visitors currently inside the complex
+- `PATCH /api/v1/visits/{id}/exit` — Record visitor departure timestamp
+- `POST /api/v1/correspondence` — Register incoming package/mail
+- `GET /api/v1/correspondence` — List pending packages by unit
+- `PATCH /api/v1/correspondence/{id}/deliver` — Mark parcel as collected
+
+**Events published:**
+- `VisitRegistered` → Topic: `access.visit.registered`
+- `VisitEnded` → Topic: `access.visit.ended`
+- `CorrespondenceReceived` → Topic: `access.correspondence.received`
+- `CorrespondenceDelivered` → Topic: `access.correspondence.delivered`
 
 ---
 
