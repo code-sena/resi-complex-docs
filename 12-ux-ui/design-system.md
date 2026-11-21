@@ -172,36 +172,47 @@ system-wide instead of ad-hoc colored text.
 
 ### Status badge
 
+Synchronized 1:1 with the MySQL `CHECK` constraints in `06-data/models.md` and `07-api/contracts/openapi/*.yaml`:
+
 | Entity | Status value | Badge color token | Notes |
 |--------|-------------|--------------------|-------|
-| Maintenance Request | `PENDING` | `--color-warning` | |
-| Maintenance Request | `ASSIGNED` | `--color-info` | |
-| Maintenance Request | `IN_PROGRESS` | `--color-info` | |
-| Maintenance Request | `RESOLVED` | `--color-success` | Terminal state |
-| Administration Fee | `PENDING` | `--color-warning` | |
-| Administration Fee | `OVERDUE` | `--color-error` | |
-| Administration Fee | `PAID` | `--color-success` | Terminal state |
-| Correspondence | `PENDING` | `--color-warning` | |
-| Correspondence | `DELIVERED` | `--color-success` | Terminal state |
-| Expense Proposal | `UNDER_REVIEW` | `--color-info` | |
-| Expense Proposal | `APPROVED` | `--color-success` | Terminal state |
-| Expense Proposal | `REJECTED` | `--color-error` | Terminal state |
+| Maintenance Request | `PENDING` | `--color-warning` | Newly reported (`FR05`) |
+| Maintenance Request | `ASSIGNED` | `--color-info` | Assigned to `MAINTENANCE_STAFF` (`FR06`) |
+| Maintenance Request | `IN_PROGRESS` | `--color-info` | Active repair (or returned after rejection) |
+| Maintenance Request | `WORK_COMPLETED` | `--color-warning` | Awaiting `PERSON` / `ADMINISTRATOR` verification (`BR-09`) |
+| Maintenance Request | `RESOLVED` | `--color-success` | Verified terminal state |
+| Administration Fee | `PENDING` | `--color-warning` | Unpaid within due window (`FR08`) |
+| Administration Fee | `PARTIALLY_PAID` | `--color-info` | Partial payment voucher recorded (`FR10`, `BR-11`) |
+| Administration Fee | `OVERDUE` | `--color-error` | Past due date with late surcharge |
+| Administration Fee | `PAID` | `--color-success` | Settled terminal state |
+| Correspondence | `PENDING_PICKUP` *(display: Pending)* | `--color-warning` | Held at front desk with 4-digit PIN (`FR15`, `BR-14`) |
+| Correspondence | `DELIVERED` | `--color-success` | Handed over via PIN confirmation (`FR16`) |
+| Visitor Pre-Authorization | `ACTIVE` | `--color-info` | Valid for gate check-in (`FR22`) |
+| Visitor Pre-Authorization | `USED` | `--color-success` | Converted to an active `Visit` |
+| Visitor Pre-Authorization | `EXPIRED` / `CANCELLED` | `--color-neutral-900` on `--color-neutral-50` | Inactive terminal state |
+| Expense Proposal | `PENDING_REVIEW` *(UI: Under Review)* | `--color-info` | Open for `BOARD` quorum voting (`FR17`–`FR18`) |
+| Expense Proposal | `APPROVED` | `--color-success` | Quorum approved terminal state (`BR-15`) |
+| Expense Proposal | `REJECTED` | `--color-error` | Quorum rejected terminal state (`BR-15`) |
+| Expense Proposal | `EXPIRED` | `--color-neutral-900` on `--color-neutral-50` | Voting deadline elapsed without quorum |
 
-### Priority badge (Maintenance Request only)
+### Priority badge (Maintenance Request & Announcements)
 
-| Priority | Badge color token | Notes |
-|----------|--------------------|-------|
-| `LOW` | `--color-neutral-900` on `--color-neutral-50` (no semantic color) | |
-| `MEDIUM` | `--color-info` | |
-| `HIGH` | `--color-warning` | |
-| `URGENT` | `--color-error` | Also bolded, to match the notification policy in `02-domain/domain-events.md` that immediately alerts maintenance staff |
+| Entity | Priority | Badge color token | Notes |
+|--------|----------|--------------------|-------|
+| Maintenance Request | `LOW` | `--color-neutral-900` on `--color-neutral-50` | Routine upkeep |
+| Maintenance Request | `MEDIUM` | `--color-info` | Standard turnaround |
+| Maintenance Request | `HIGH` | `--color-warning` | Elevated attention |
+| Maintenance Request | `URGENT` | `--color-error` (bold) | Immediate reactive alert to `MAINTENANCE_STAFF` (`domain-events.md`) |
+| Announcement (`FR11`) | `INFORMATIVE` | `--color-info` | General community notice |
+| Announcement (`FR11`) | `IMPORTANT` | `--color-warning` | Highlighted administrative notice |
+| Announcement (`FR11`) | `EMERGENCY` | `--color-error` (bold) | Pinned complex-wide emergency banner |
 
 ### Unit type badge
 
 | Unit type | Badge color token | Notes |
 |-----------|--------------------|-------|
-| `RESIDENTIAL` | `--color-secondary-500` | Neither type is "good" or "bad" — use the secondary/neutral palette, not semantic colors |
-| `COMMERCIAL` | `--color-primary-500` | |
+| `RESIDENTIAL` | `--color-secondary-500` | Neither type is "good" or "bad" — use the secondary/primary palette, not semantic colors |
+| `COMMERCIAL` | `--color-primary-500` | Visual differentiator across Units, Billing, and Announcements |
 
 ---
 
@@ -209,15 +220,15 @@ system-wide instead of ad-hoc colored text.
 
 ### Principles
 
-1. **Confirm before destroying:** Any action that permanently deletes or modifies data requires a confirmation modal (e.g. deleting a unit, rejecting an expense proposal — both terminal/hard-to-reverse actions per `02-domain/entities-and-rules.md`).
+1. **Confirm before destroying:** Any action that permanently deletes or modifies data requires a confirmation modal (e.g., soft-deleting a unit, deactivating a tenant occupancy, rejecting an expense proposal — terminal/high-impact actions per `02-domain/entities-and-rules.md`).
 
 2. **Immediate feedback:** Every action must have a visual response in < 100ms (even if it is just the loading state).
 
-3. **Prevent rather than correct:** Validate in real time in the form, not only on submit (e.g. a commercial unit's form should require establishment data before allowing submission, mirroring the `AGGR-INV-001` invariant in `entities-and-rules.md`).
+3. **Prevent rather than correct:** Validate in real time in the form, not only on submit (e.g., a commercial unit form requires establishment data per `BR-04` / `AGGR-INV-001`; a common-area maintenance form requires `commonAreaName` per `BR-08`).
 
-4. **Empty state as a feature:** The screen without data is the new user's first impression — guide them to the first action (e.g. a brand-new resident's `/requests` screen should invite them to create their first request, not just show a blank table).
+4. **Empty state as a feature:** Every table/list without data guides the user to their primary next action (e.g., empty `/requests` invites `PERSON` to report a maintenance request).
 
-5. **Ownership-aware UI:** Screens for `PERSON` and `MAINTENANCE_STAFF` never display data belonging to other units or unassigned requests — mirrors the ownership-level authorization concept in `01-context/glossary.md`.
+5. **Ownership-aware UI (`P5`):** Screens for `PERSON` and `MAINTENANCE_STAFF` never display data belonging to other units or unassigned requests — mirroring backend `:own` / `:assigned` authorization (`07-api/authentication.md`).
 
 ### Error handling
 
@@ -227,27 +238,28 @@ system-wide instead of ad-hoc colored text.
 | 401 error | Redirect to `/login` with message "Your session expired" |
 | 403 error | Screen "You do not have permission to view this" with a link back to `/dashboard` |
 | 404 error | 404 screen with back navigation |
-| 500 error | Error toast + "Retry" button |
+| 409 / 422 error | Inline alert displaying RFC 7807 `ErrorResponse.message` and field `details` |
+| 500 error | Error toast + "Retry" button + support `traceId` |
 | Timeout | Toast "This is taking longer than normal" with cancel option |
 
 ---
 
-## Accessibility guide (minimums)
+## Accessibility guide (minimums — `NFR-009`)
 
 | Aspect | Minimum required |
 |--------|-----------------|
-| Text contrast | WCAG AA (4.5:1 for normal text, 3:1 for large text) — status badges must meet this against their background, not rely on color alone (pair with an icon or label) |
-| Keyboard navigation | All interactive elements accessible with Tab (important for front-desk operators using the Security Guard screens quickly) |
-| Form labels | All fields with associated label (`for` / `aria-label`) |
-| Images | Descriptive alt text on all non-decorative images |
-| Visible focus | Visible focus indicator on all interactive elements |
-| Responsive layout | The Single Source of Truth's original NFR03 requires the system to be usable from a mobile phone — every screen in `navigation-map.md` must work down to a small mobile viewport, not just tablet/desktop |
+| Text contrast | WCAG 2.1 AA (`4.5:1` for normal text, `3:1` for large text) — status badges always pair color with an explicit text label or icon |
+| Keyboard navigation | All interactive elements reachable via `Tab`; front-desk shortcuts (`Alt + N`) exposed via `Tooltip` |
+| Form labels | All fields paired with explicit `<label for>` or `aria-label` |
+| Images | Descriptive `alt` text on all non-decorative images |
+| Visible focus | High-contrast focus ring on all interactive elements |
+| Responsive layout | Per `04-requirements/non-functional.md` (`NFR-009`), every screen in `navigation-map.md` must work down to a **`360px` mobile viewport** with zero horizontal overflow, verified via `axe-core` and Lighthouse |
 
 ---
 
 ## Correlations
 
-- Navigation map → `12-ux-ui/navigation-map.md`
-- Wireframes → `12-ux-ui/wireframes.md` *(not created yet — pending; see `12-ux-ui/README.md`)*
-- Entities and their status lifecycles → `02-domain/entities-and-rules.md`
-- Roles referenced in ownership-aware UI rules → `00-governance/security-policy.md`
+- Navigation map & 26-screen access matrix → `12-ux-ui/navigation-map.md`
+- High-fidelity Stitch mockups & UI Kit → `12-ux-ui/wireframes.md`
+- Authoritative DB enums & constraints → `06-data/models.md`
+- Roles & ownership authorization → `00-governance/security-policy.md`, `07-api/authentication.md`

@@ -14,10 +14,10 @@ It lasts 2–4 hours with the whole team (dev + PO + business expert).
 **Standard colors:**
 | Color | Represents | Example |
 |-------|-----------|---------|
-| 🟠 Orange | **Domain events** (something that happened, past tense) | `AppointmentScheduled`, `PaymentReceived` |
-| 🔵 Blue | **Commands** (action that triggers the event) | `ScheduleAppointment`, `ProcessPayment` |
-| 🟡 Yellow | **Actors** (who executes the command) | `Patient`, `Doctor`, `Admin` |
-| 🩷 Pink | **External systems** or integration points | `Payment Gateway`, `Email SMTP` |
+| 🟠 Orange | **Domain events** (something that happened, past tense) | `FeeGenerated`, `MaintenanceRequestCreated`, `ExpenseProposalApproved` |
+| 🔵 Blue | **Commands** (action that triggers the event) | `GenerateMonthlyFee`, `AssignMaintenanceRequest`, `CastBoardVote` |
+| 🟡 Yellow | **Actors** (who executes the command) | `ADMINISTRATOR`, `BOARD`, `PERSON`, `MAINTENANCE_STAFF`, `SECURITY_GUARD` |
+| 🩷 Pink | **External systems** or integration points | `None in MVP` *(future v2.0: Payment Gateway)* |
 
 **Session steps:**
 1. (30 min) Post all events that occur in the business, in chronological order, on the wall

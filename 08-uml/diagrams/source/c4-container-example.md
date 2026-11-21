@@ -30,7 +30,7 @@ C4Container
 
         Container(servicio_b, "[Servicio B]", "[Tu stack]", "[Responsabilidad principal del servicio B. Dueño de [Entidad B].]")
 
-        ContainerDb(db_auth, "BD Auth", "PostgreSQL", "Usuarios, roles, refresh tokens.")
+        ContainerDb(db_auth, "iam_db", "MySQL 8.0", "Users, 5 canonical RBAC roles, refresh tokens, outbox.")
         ContainerDb(db_a, "BD [Servicio A]", "[Motor elegido]", "Datos del dominio de [Servicio A].")
         ContainerDb(db_b, "BD [Servicio B]", "[Motor elegido]", "Datos del dominio de [Servicio B].")
         ContainerDb(redis, "Redis", "Redis", "Token blacklist, rate limiting, caché compartida.")

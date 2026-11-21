@@ -93,7 +93,7 @@ paths:
         (`PERSONAL_VISITOR` o `COMMERCIAL_CLIENT`) y datos vehiculares opcionales (`vehiclePlate`, `vehicleType`).
         La visita se inicializa en estado `ACTIVE` y publica el evento `VisitRegistered`.
 
-        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`
+        **Roles permitidos:** `ADMINISTRATOR`, `SECURITY_GUARD`
       operationId: createVisit
       tags: [Visits]
       requestBody:
@@ -129,7 +129,7 @@ paths:
         Retorna la lista de visitantes y vehículos que se encuentran actualmente dentro del conjunto (`status = ACTIVE`).
         Permite filtrar por unidad destino, tipo de visita o placa vehicular.
 
-        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`, `RESIDENT` (solo su unidad), `MERCHANT` (solo su local)
+        **Roles permitidos:** `ADMINISTRATOR`, `SECURITY_GUARD`, `PERSON` (`:own` — solo su unidad)
       operationId: listActiveVisits
       tags: [Visits]
       parameters:
@@ -172,7 +172,7 @@ paths:
         Registra la marca de tiempo de salida (`exitTime`) de una visita activa y cambia su estado de `ACTIVE` a `COMPLETED`.
         Retorna `409 Conflict` si la visita ya fue cerrada previamente.
 
-        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`
+        **Roles permitidos:** `ADMINISTRATOR`, `SECURITY_GUARD`
       operationId: registerVisitExit
       tags: [Visits]
       parameters:
@@ -210,7 +210,7 @@ paths:
         Registra en portería la llegada de un sobre, paquete o domicilio destinado a una unidad.
         Se inicializa en estado `PENDING_PICKUP` y publica el evento `CorrespondenceReceived`.
 
-        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`
+        **Roles permitidos:** `ADMINISTRATOR`, `SECURITY_GUARD`
       operationId: createCorrespondence
       tags: [Correspondence]
       requestBody:
@@ -245,7 +245,7 @@ paths:
         Consulta los registros de correspondencia recibida en portería. Permite filtrar por unidad (`unitId`)
         y estado (`PENDING_PICKUP` o `DELIVERED`).
 
-        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`, `RESIDENT` (solo su unidad), `MERCHANT` (solo su local)
+        **Roles permitidos:** `ADMINISTRATOR`, `SECURITY_GUARD`, `PERSON` (`:own` — solo su unidad)
       operationId: listCorrespondence
       tags: [Correspondence]
       parameters:
@@ -282,7 +282,7 @@ paths:
         de `PENDING_PICKUP` a `DELIVERED` y registrando `deliveredAt`.
         Retorna `409 Conflict` si ya fue marcada como entregada.
 
-        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`
+        **Roles permitidos:** `ADMINISTRATOR`, `SECURITY_GUARD`
       operationId: deliverCorrespondence
       tags: [Correspondence]
       parameters:

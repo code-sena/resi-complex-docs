@@ -1,87 +1,140 @@
 openapi: 3.0.3
 info:
-  title: API Gateway
+  title: API Gateway — resi-complex
   version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
   description: |
-    Punto único de entrada al sistema. El gateway enruta las peticiones a los
-    microservicios correspondientes según el path.
+    Single edge entry point for **resi-complex** (`resi-complex-api-gateway`, Spring Cloud Gateway, `ADR-006`).
+    Centralizes JWT authentication verification, CORS policy, per-client rate limiting (`240 RPM` default),
+    distributed correlation tracing, and reverse-proxy routing to all 9 internal microservices.
 
-    ## Autenticación
-    La mayoría de los endpoints requieren un JWT válido:
+    ## Authentication
+    All `/api/v1/**` endpoints require a valid JWT Bearer token except public IAM routes
+    (`POST /api/v1/auth/login`, `POST /api/v1/auth/register`, `POST /api/v1/auth/activate`,
+    `POST /api/v1/auth/refresh`, `GET /api/v1/auth/jwks`) and `GET /health`.
     ```
     Authorization: Bearer <access_token>
     ```
-    El token se obtiene en `POST /api/v1/auth/login` (ver `auth-service.yaml`).
 
-    ## Headers internos (solo entre servicios)
-    El gateway agrega estos headers antes de reenviar la petición al upstream:
-    - `X-User-Id`: UUID del usuario autenticado
-    - `X-User-Role`: Rol del usuario (ADMIN, USER, VIEWER)
-    - `X-Correlation-Id`: ID de traza para correlacionar logs
+    ## Internal Propagated Headers (Stripped from client input, injected by Gateway)
+    - `X-User-Id`: Authenticated user UUID (`JWT.sub`)
+    - `X-User-Roles`: Canonical RBAC role (`ADMINISTRATOR`, `BOARD`, `PERSON`, `MAINTENANCE_STAFF`, `SECURITY_GUARD`)
+    - `X-User-Permissions`: Comma-separated granted RBAC permissions
+    - `X-Correlation-Id`: Distributed trace correlation UUID
+
+    ## Canonical Downstream Routing Table
+    | Path Prefix | Target Service | Canonical Port |
+    |---|---|---|
+    | `/api/v1/auth/**`, `/api/v1/users/**`, `/api/v1/roles/**` | `iam-service` | `:8081` |
+    | `/api/v1/announcements/**`, `/api/v1/notifications/**` | `communications-service` | `:8082` |
+    | `/api/v1/units/**` | `units-service` | `:8083` |
+    | `/api/v1/fees/**`, `/api/v1/payments/**` | `billing-service` | `:8084` |
+    | `/api/v1/people/**`, `/api/v1/occupancies/**` | `people-service` | `:8085` |
+    | `/api/v1/maintenance-requests/**` | `maintenance-service` | `:8086` |
+    | `/api/v1/visits/**`, `/api/v1/correspondence/**`, `/api/v1/preauthorizations/**` | `access-control-service` | `:8087` |
+    | `/api/v1/expense-proposals/**` | `finance-approval-service` | `:8088` |
+    | `/api/v1/reports/**` | `reports-service` | `:8089` |
 
 servers:
-  - url: http://localhost:8080
-    description: Local development
-  - url: https://api.dev.{domain}
-    description: Development
-    variables:
-      domain:
-        default: example.com
-  - url: https://api.{domain}
-    description: Production
-    variables:
-      domain:
-        default: example.com
+  - url: http://127.0.0.1:8080
+    description: Canonical local / Docker API Gateway (port 8080)
+  - url: http://127.0.0.1:8090
+    description: Local Windows fallback port when port 8080 is occupied (SERVER_PORT=8090)
 
 tags:
   - name: Health
-    description: Estado del gateway y sus upstreams
+    description: Gateway liveness and downstream microservice health aggregation
 
 paths:
   /health:
     get:
-      summary: Health check del gateway
+      operationId: getGatewayHealth
+      summary: API Gateway health check
       description: |
-        Verifica que el gateway esté funcionando y que todos los servicios upstream
-        estén respondiendo. No requiere autenticación.
+        Verifies that `api-gateway` is running and reports connectivity status for all 9 internal microservices.
+        Public endpoint — does not require authentication.
       tags:
         - Health
       security: []
       responses:
         '200':
-          description: Gateway y upstreams saludables
+          description: Gateway and downstream microservices are healthy
           content:
             application/json:
               schema:
-                type: object
-                required: [status, timestamp]
-                properties:
-                  status:
-                    type: string
-                    enum: [ok, degraded]
-                  timestamp:
-                    type: string
-                    format: date-time
-                  upstreams:
-                    type: object
-                    description: Estado de cada microservicio
-                    additionalProperties:
-                      type: string
-                      enum: [ok, degraded, down]
+                $ref: '#/components/schemas/GatewayHealthResponse'
               example:
                 status: ok
-                timestamp: '2024-01-15T10:30:00Z'
+                service: api-gateway
+                timestamp: '2026-11-21T00:00:00Z'
                 upstreams:
-                  auth-service: ok
-                  nombre-servicio: ok
-        '503':
-          description: El gateway está iniciando o un upstream crítico está caído
+                  iam-service: ok
+                  communications-service: ok
+                  units-service: ok
+                  billing-service: ok
+                  people-service: ok
+                  maintenance-service: ok
+                  access-control-service: ok
+                  finance-approval-service: ok
+                  reports-service: ok
+        '429':
+          description: Rate limit exceeded
           content:
             application/json:
               schema:
-                $ref: './auth-service.yaml#/components/schemas/ErrorResponse'
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+        '503':
+          description: Gateway is starting up or a critical upstream (`iam-service`) is unreachable
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
 
 components:
-  securitySchemes:
-    bearerAuth:
-      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'
+  schemas:
+    GatewayHealthResponse:
+      type: object
+      required: [status, service, timestamp, upstreams]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        service:
+          type: string
+          example: api-gateway
+        timestamp:
+          type: string
+          format: date-time
+        upstreams:
+          type: object
+          description: Connectivity state of each of the 9 internal microservices
+          properties:
+            iam-service:
+              type: string
+              enum: [ok, degraded, down]
+            communications-service:
+              type: string
+              enum: [ok, degraded, down]
+            units-service:
+              type: string
+              enum: [ok, degraded, down]
+            billing-service:
+              type: string
+              enum: [ok, degraded, down]
+            people-service:
+              type: string
+              enum: [ok, degraded, down]
+            maintenance-service:
+              type: string
+              enum: [ok, degraded, down]
+            access-control-service:
+              type: string
+              enum: [ok, degraded, down]
+            finance-approval-service:
+              type: string
+              enum: [ok, degraded, down]
+            reports-service:
+              type: string
+              enum: [ok, degraded, down]

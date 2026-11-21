@@ -1,0 +1,532 @@
+openapi: 3.0.3
+info:
+  title: People Service API — resi-complex
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  description: |
+    **People & Unit Occupancy Management Authority** (`resi-complex-people-service`, `people_db`).
+    Manages `person` profiles (`RESIDENT`, `COMMERCIAL_OWNER`, `COMMERCIAL_TENANT`) and their formal
+    `unit_occupancies` tenancy lifecycle (`OWNER` / `TENANT`, `ACTIVE` / `INACTIVE`) in compliance with
+    Colombian Ley 1581 de 2012 (`FR21`, `BR-06`, `BR-07`, `BR-16`).
+
+    ## Authentication & Authorization
+    All business endpoints require a valid JWT Bearer token verified by `api-gateway`:
+    - `ADMINISTRATOR`: Full CRUD over persons and unit occupancies (`people:*`, `occupancies:*`).
+    - `BOARD`: Read-only access (`people:read`).
+    - `PERSON`: Own profile read/update only (`people:read:own`, `people:update:own`).
+    - `SECURITY_GUARD`: Scoped unit-occupant lookup for front-desk verification (`people:read`).
+
+    ## Domain Invariants
+    - **Single Person Entity (`BR-06`):** Residents and commercial owners/tenants share the `person` table differentiated by `personType`; they authenticate under the single IAM role `PERSON`.
+    - **Unique Document ID (`uq_person_document`):** Duplicate `documentId` registrations are rejected with `409 Conflict`.
+    - **Tenancy Deactivation (`BR-07`):** Ending a lease sets `status = INACTIVE` and stamps `endDate`, immediately revoking `:own` unit-scoped access in downstream services without deleting historical audit records.
+    - **Date Consistency (`chk_occupancies_dates`):** `endDate` must be null or greater than or equal to `startDate`.
+
+servers:
+  - url: http://127.0.0.1:8085
+    description: Local people-service (direct port 8085)
+  - url: http://127.0.0.1:8080
+    description: Local API Gateway (canonical port 8080)
+
+tags:
+  - name: Health
+    description: Service liveness and MySQL connectivity
+  - name: People
+    description: Resident and commercial owner/tenant profile management (FR21)
+  - name: Occupancies
+    description: Unit occupancy & lease lifecycle management (FR21, BR-07)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: getPeopleServiceHealth
+      summary: Health check for people-service
+      description: Returns liveness status and MySQL (`people_db`) connectivity. Public endpoint.
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/people:
+    get:
+      operationId: listPeople
+      summary: List registered people
+      description: |
+        Returns a paginated list of persons with optional filtering by `personType`, `unitId`, or search query.
+        **Allowed roles:** `ADMINISTRATOR`, `BOARD`, `SECURITY_GUARD` (`people:read`).
+      tags:
+        - People
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/PageParam'
+        - $ref: './_shared.yaml#/components/parameters/LimitParam'
+        - name: personType
+          in: query
+          description: Filter by business person subtype
+          schema:
+            $ref: '#/components/schemas/PersonType'
+        - name: unitId
+          in: query
+          description: Filter by currently assigned unit UUID
+          schema:
+            $ref: './_shared.yaml#/components/schemas/UUID'
+        - name: search
+          in: query
+          description: Search by full name or document ID
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Paginated list of people
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPeopleResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+
+    post:
+      operationId: registerPerson
+      summary: Register a new person and optional initial unit occupancy (FR21)
+      description: |
+        Registers a resident or commercial owner/tenant in `people_db.person`, optionally creating their
+        initial `ACTIVE` record in `unit_occupancies` and emitting `PersonRegistered` via Transactional Outbox.
+        **Allowed roles:** `ADMINISTRATOR` (`people:create`).
+      tags:
+        - People
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePersonRequest'
+      responses:
+        '201':
+          description: Person registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '409':
+          description: Document ID already registered (`uq_person_document`)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/people/{id}:
+    get:
+      operationId: getPersonById
+      summary: Retrieve person detail by ID
+      description: |
+        Returns full profile and occupancy history for the specified person.
+        **Allowed roles:** `ADMINISTRATOR`, `BOARD`, `SECURITY_GUARD`, `PERSON` (`people:read:own`).
+      tags:
+        - People
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Person detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+    patch:
+      operationId: updatePerson
+      summary: Update person contact details or subtype
+      description: |
+        Updates mutable profile attributes (`fullName`, `phone`, `email`, `personType`).
+        `PERSON` users may only update their own `phone` and `email` (`people:update:own`).
+        **Allowed roles:** `ADMINISTRATOR`, `PERSON` (`:own`).
+      tags:
+        - People
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePersonRequest'
+      responses:
+        '200':
+          description: Person updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+  /api/v1/people/{id}/occupancies:
+    get:
+      operationId: listPersonOccupancies
+      summary: List unit occupancies for a person
+      description: |
+        Returns active and historical unit occupancy records for the given person.
+        **Allowed roles:** `ADMINISTRATOR`, `BOARD`, `PERSON` (`:own`).
+      tags:
+        - Occupancies
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+        - name: status
+          in: query
+          description: Filter by occupancy status
+          schema:
+            $ref: '#/components/schemas/OccupancyStatus'
+      responses:
+        '200':
+          description: List of unit occupancies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UnitOccupancyResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+    post:
+      operationId: createUnitOccupancy
+      summary: Assign a person to a unit occupancy (FR21)
+      description: |
+        Links an existing `person` to a physical `unitId` as `OWNER` or `TENANT` with status `ACTIVE`.
+        **Allowed roles:** `ADMINISTRATOR` (`occupancies:create`).
+      tags:
+        - Occupancies
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOccupancyRequest'
+      responses:
+        '201':
+          description: Occupancy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitOccupancyResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+        '422':
+          description: Invalid occupancy dates (`endDate < startDate`)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/occupancies/{id}/deactivate:
+    patch:
+      operationId: deactivateUnitOccupancy
+      summary: Deactivate a unit occupancy on lease termination (FR21, HU-PPL-002, BR-07)
+      description: |
+        Transitions an `ACTIVE` occupancy to `INACTIVE` and stamps `endDate`, immediately revoking `:own`
+        unit-scoped permissions for the former occupant while preserving historical audit records.
+        **Allowed roles:** `ADMINISTRATOR` (`occupancies:update`).
+      tags:
+        - Occupancies
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeactivateOccupancyRequest'
+      responses:
+        '200':
+          description: Occupancy deactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitOccupancyResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+        '409':
+          description: Occupancy is already INACTIVE
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+        '422':
+          description: End date precedes start date
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/units/{unitId}/occupancies:
+    get:
+      operationId: listOccupanciesByUnit
+      summary: List occupants of a specific physical unit
+      description: |
+        Returns active or historical occupants associated with a `unitId`. Used by Administrators,
+        Security Guards (visitor verification), and downstream ownership checks.
+        **Allowed roles:** `ADMINISTRATOR`, `BOARD`, `SECURITY_GUARD`.
+      tags:
+        - Occupancies
+      parameters:
+        - name: unitId
+          in: path
+          required: true
+          description: Physical unit UUID (`units_db.units.id`)
+          schema:
+            $ref: './_shared.yaml#/components/schemas/UUID'
+        - name: status
+          in: query
+          description: Filter by occupancy status (defaults to ACTIVE)
+          schema:
+            $ref: '#/components/schemas/OccupancyStatus'
+      responses:
+        '200':
+          description: Unit occupancies retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UnitOccupancyResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, service, database]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+          example: people-service
+        database:
+          type: string
+          enum: [connected, disconnected]
+
+    PersonType:
+      type: string
+      enum:
+        - RESIDENT
+        - COMMERCIAL_OWNER
+        - COMMERCIAL_TENANT
+      description: Business subtype under canonical IAM role PERSON
+
+    OccupancyType:
+      type: string
+      enum:
+        - OWNER
+        - TENANT
+
+    OccupancyStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+
+    CreatePersonRequest:
+      type: object
+      required: [fullName, documentId, personType]
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: Camila Gómez Rodríguez
+        documentId:
+          type: string
+          minLength: 5
+          maxLength: 30
+          example: '1020304050'
+        personType:
+          $ref: '#/components/schemas/PersonType'
+        unitId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        occupancyType:
+          $ref: '#/components/schemas/OccupancyType'
+        startDate:
+          type: string
+          format: date
+          example: '2026-01-15'
+        phone:
+          type: string
+          maxLength: 20
+          example: '+573001234567'
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: camila.gomez@example.com
+
+    UpdatePersonRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 150
+        personType:
+          $ref: '#/components/schemas/PersonType'
+        phone:
+          type: string
+          maxLength: 20
+        email:
+          type: string
+          format: email
+          maxLength: 255
+
+    PersonResponse:
+      type: object
+      required: [id, fullName, documentId, personType, createdAt, updatedAt]
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        fullName:
+          type: string
+          example: Camila Gómez Rodríguez
+        documentId:
+          type: string
+          example: '1020304050'
+        personType:
+          $ref: '#/components/schemas/PersonType'
+        unitId:
+          type: string
+          format: uuid
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+          example: '+573001234567'
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: camila.gomez@example.com
+        createdAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+
+    PaginatedPeopleResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonResponse'
+        meta:
+          $ref: './_shared.yaml#/components/schemas/PaginatedMeta'
+
+    CreateOccupancyRequest:
+      type: object
+      required: [unitId, occupancyType, startDate]
+      properties:
+        unitId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        occupancyType:
+          $ref: '#/components/schemas/OccupancyType'
+        startDate:
+          type: string
+          format: date
+          example: '2026-01-15'
+
+    DeactivateOccupancyRequest:
+      type: object
+      properties:
+        endDate:
+          type: string
+          format: date
+          description: Lease termination date (defaults to current UTC date if omitted)
+          example: '2026-11-21'
+
+    UnitOccupancyResponse:
+      type: object
+      required: [id, unitId, personId, occupancyType, status, startDate, createdAt]
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        unitId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        personId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        occupancyType:
+          $ref: '#/components/schemas/OccupancyType'
+        status:
+          $ref: '#/components/schemas/OccupancyStatus'
+        startDate:
+          type: string
+          format: date
+          example: '2026-01-15'
+        endDate:
+          type: string
+          format: date
+          nullable: true
+          example: null
+        createdAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'

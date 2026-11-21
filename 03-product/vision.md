@@ -83,17 +83,19 @@ These principles guide design and prioritization decisions when there are trade-
 
 **Objective:** Deliver a functional MVP that covers FR01–FR22, validated with a real or simulated pilot residential complex, with governance and documentation standards fully applied.
 
-| Key Result | Baseline | Target | Date |
-|------------|---------|--------|------|
-| KR1: % of FR01–FR22 implemented and passing acceptance criteria | 0% | 100% | End of ADSO 3239188 academic term |
-| KR2: Role-based surveys/interviews applied and analyzed (5 roles) | 5 / 5 applied (`03-product/*-survey.md`) | 5 / 5 applied and analyzed | Completed (Phase 1 Discovery) |
-| KR3: Microservices catalog confirmed with instructor | Proposed, not confirmed | Confirmed | **TBD** |
-| KR4: Response time in normal operations (NFR01) | N/A (no system yet) | < 2 seconds | **TBD** |
+| Key Result | Baseline | Target | Date / Status |
+|------------|---------|--------|---------------|
+| KR1: % of FR01–FR22 implemented and passing acceptance criteria | 0% (7/10 service repos in Phase 1) | 100% (22/22 HUs, ≥ 80% coverage) | End of ADSO 3239188 academic term |
+| KR2: Role-based surveys/interviews applied and analyzed (5 roles) | 5 / 5 instruments synthesized (`03-product/discovery-brief.md`) | 5 / 5 applied and synthesized | ✅ Completed (Phase 1 Discovery) |
+| KR3: Microservices catalog confirmed (9 services + API Gateway) | Proposed (`05-architecture/overview.md`) | Confirmed & cataloged (`09-microservices/service-catalog.md`) | ✅ Confirmed (2026-11-21) |
+| KR4: Response time in normal operations (`NFR-001`) | N/A (manual processes) | P95 < 300 ms at 50 RPS (normal operations < 2 s) | Validated via k6 before ADSO 3239188 final release |
 
 ---
 
 ## Correlations
 
+- Discovery synthesis → `03-product/discovery-brief.md`
 - Problem framing (the why) → `03-product/problem-framing.md`
-- Backlog that implements the vision → `04-requirements/user-stories.md`
+- Roadmap & prioritized backlog → `03-product/roadmap.md`, `03-product/product-backlog.md`
+- Formal HUs implementing the vision → `04-requirements/user-stories.md`
 - KPIs in operations → `13-operations/README.md`

@@ -36,36 +36,30 @@ Examples:
 
 ---
 
-## Diagram registry
+## Diagram Registry (Synchronized with `resi-complex`)
 
-### Architecture diagrams (C4)
+### Architecture Diagrams (C4 — Mermaid)
 
-| ID | Name | Type | Tool | Source file | Description |
-|----|------|------|------|-------------|-------------|
-| C4-01 | System Context | C4 L1 | PlantUML | `source/c1-system-context.puml` | The system and its external actors |
-| C4-02 | Container Diagram | C4 L2 | PlantUML | `source/c2-container-diagram.puml` | All services and DBs |
-| C4-03 | [Service A] Components | C4 L3 | PlantUML | `source/c3-service-a.puml` | Internal components of the service |
+| ID | Name | Level | Tool | Location | Description |
+|----|------|-------|------|----------|-------------|
+| **C4-01** | System Context | C4 L1 | Mermaid | `05-architecture/overview.md` §2 | 5 canonical roles interacting with `resi-complex` |
+| **C4-02** | Container Topology | C4 L2 | Mermaid | `05-architecture/overview.md` §3 & `05-architecture/deployment.md` | API Gateway (`:8080`), 9 Spring Boot microservices (`:8081–:8089`), 9 MySQL 8 DBs, RabbitMQ |
+| **C4-03** | Microservices Service Map | C4 L2 | Mermaid | `09-microservices/service-catalog.md` §1 | Runtime sync/async routing across all 10 services |
 
-### Sequence diagrams
+### Sequence Diagrams (Mermaid)
 
-| ID | Name | Tool | Source file | Description |
-|----|------|------|-------------|-------------|
-| SEQ-01 | Login flow | PlantUML | `source/seq-login.puml` | Registration → Login → JWT |
-| SEQ-02 | [Main flow] | PlantUML | `source/seq-[name].puml` | [Description] |
-| SEQ-03 | [Error flow] | PlantUML | `source/seq-[name]-error.puml` | [Error scenario] |
+| ID | Name | Tool | Location | Description |
+|----|------|------|----------|-------------|
+| **SEQ-01** | Authentication, Gateway Propagation & Refresh Rotation | Mermaid | `07-api/authentication.md` §3 | Login (`FR01`), JWT check + `X-User-*` headers (`ADR-006`), refresh rotation (`BR-03`) |
+| **SEQ-02** | Maintenance Request Lifecycle (`WORK_COMPLETED` Verification) | Mermaid | `12-ux-ui/navigation-map.md` (Flow 2) | Creation (`FR05`) → assignment → repair → resident verify/reject (`FR06`, `FR07`) |
+| **SEQ-03** | Extraordinary Expense Quorum Approval | Mermaid | `12-ux-ui/navigation-map.md` (Flow 4) | Proposal (`FR17`) → Board append-only voting → auto-resolution (`FR18`) |
 
-### State diagrams
+### Entity-Relationship Diagrams (MySQL 8 — Mermaid)
 
-| ID | Name | Tool | Source file | Description |
-|----|------|------|-------------|-------------|
-| ST-01 | Order lifecycle | PlantUML | `source/state-order.puml` | Order states and transitions |
-
-### ER diagrams (data)
-
-| ID | Name | Tool | Source file | Service |
-|----|------|------|-------------|---------|
-| ERD-01 | Orders DB | Mermaid | `source/erd-orders.mmd` | order-service |
-| ERD-02 | Auth DB | Mermaid | `source/erd-auth.mmd` | auth-service |
+| ID | Name | Tool | Location | Database(s) |
+|----|------|------|----------|-------------|
+| **ERD-00** | Complete Cross-Service Data Model (18 Domain Tables) | Mermaid | `06-data/models.md` | All 9 dedicated MySQL 8 schemas (`iam_db`..`reports_db`) |
+| **ERD-01** | Per-Service ER Diagrams (`02`–`10`) | Mermaid | `09-microservices/services/*/data-model.md` | One dedicated ER diagram per bounded context |
 
 ---
 

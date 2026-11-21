@@ -29,6 +29,8 @@ The DoD requires it.
 
 > **Rule:** Once the language for each category is chosen, it is binding for the entire project.
 > Mixing languages in the same category is grounds for PR rejection.
+>
+> **Bounded exception (`ADR-002`):** Raw, primary Spanish-language user-research artifacts (`03-product/interview-resi-complex.md` and `03-product/resi-complex-tech-watch.md`) are exempt from English translation to preserve informant fidelity. All synthesized/derived documents (`vision.md`, `problem-framing.md`, `discovery-brief.md`, etc.) remain strictly in English per `ADR-001`.
 
 ---
 

@@ -234,11 +234,9 @@ Web ────────────▶  │   API Gateway   │ ──▶ [
                     - CORS
 ```
 
-**When to use it:** Always, in microservices architectures it is essential. **resi-complex has
-not yet decided on this** — tracked as `overview.md` AT-001.
+**When to use it:** Always in microservices architectures. **Adopted in `resi-complex` (`ADR-006`, resolves `AT-001`)** using **Spring Cloud Gateway** (`:8080`, local fallback `:8090`, repository `resi-complex-api-gateway`).
 
-**Tools:** Kong, AWS API Gateway, NGINX, Traefik, Spring Cloud Gateway (the Spring-native option,
-consistent with the locked stack).
+**Tools evaluated:** Kong, AWS API Gateway, NGINX, Traefik, **Spring Cloud Gateway (chosen)** — pure Java/Spring alignment with the project stack.
 
 ---
 
@@ -246,8 +244,7 @@ consistent with the locked stack).
 
 **Problem:** Mobile and web need data in very different formats but share the same API.
 
-**Not relevant to resi-complex's MVP:** `01-context/scope.md` explicitly excludes a mobile app
-("web app only") — a single web client has no need for a BFF split.
+**Not relevant to resi-complex's MVP:** `01-context/scope.md` confirms a single responsive web client (`NFR-009`), so one API Gateway suffices.
 
 ---
 
@@ -255,8 +252,7 @@ consistent with the locked stack).
 
 **Problem:** You need to migrate a monolith to microservices without rewriting it all at once.
 
-**Not relevant to resi-complex:** there is no pre-existing monolith to migrate from — the system
-is greenfield (`01-context/overview.md`: "implementation not started").
+**Not relevant to resi-complex:** the system is greenfield microservices from day one (`ADR-003`).
 
 ---
 
@@ -271,25 +267,19 @@ is greenfield (`01-context/overview.md`: "implementation not started").
 | Typing | Manual with OpenAPI | Automatic with .proto |
 | Recommended use | Public APIs, external communication | Internal service-to-service communication |
 
-**resi-complex's choice:** REST, for all 9 services. `04-requirements/non-functional.md`'s
-critical endpoints (`POST /auth/login`, `POST /fees/generate`, `POST /maintenance-requests`,
-`POST /visits`) are already specified as REST paths — gRPC was never on the table for this
-formative delivery, and `07-api/` is explicitly OpenAPI-based per `00-sdd-guide.md`.
+**resi-complex's choice:** REST/JSON governed by **10 OpenAPI 3.0.3 contracts** (`07-api/contracts/openapi/`, linted via `redocly.yaml`) across all 9 services and the API Gateway.
 
 ---
 
-#### Asynchronous: Message Broker (Kafka / RabbitMQ)
+#### Asynchronous: Message Broker (RabbitMQ)
 
 ```
-[units-service] ──publishes UnitRegistered──▶ [Topic: units.unit.registered] ──consumes──▶ [billing-service]
-                                                                              ──consumes──▶ [access-control-service]
-                                                                              ──consumes──▶ [communications-service]
+[units-service] ──publishes UnitRegistered──▶ [Exchange: resicomplex.events] ──consumes──▶ [billing-service]
+                                                                             ──consumes──▶ [access-control-service]
+                                                                             ──consumes──▶ [communications-service]
 ```
 
-**When to use asynchronous communication:** exactly the 16 flows already designed in
-`02-domain/domain-events.md` (e.g. `FeeGenerated` → `communications-service` notifies the
-Person, `reports-service` updates arrears). **The broker technology itself is still
-undecided** — `overview.md` AT-002.
+**When to use asynchronous communication:** the 16 domain events and 6 reactive policies in `02-domain/domain-events.md` (e.g., `FeeGenerated` → `communications-service` notifies the Person, `reports-service` updates arrears). **Adopted in `resi-complex` (`ADR-005`, resolves `AT-002`)** using **RabbitMQ 3.12+** (`:5672` / UI `:15672`) with Topic Exchange `resicomplex.events`, Dead Letter Queues, Transactional `outbox`, and `processed_events` idempotency.
 
 ---
 
@@ -303,9 +293,7 @@ undecided** — `overview.md` AT-002.
 CLOSED (normal) → N consecutive failures → OPEN (fail fast) → after T seconds → HALF-OPEN → test call
 ```
 
-**resi-complex's choice, once adopted:** Resilience4j — the Spring-native option, listed as the
-cross-cutting concern's tool in `overview.md` §7. **Not yet implemented** (depends on AT-001/AT-002
-existing first — there is little to circuit-break before services actually call each other).
+**resi-complex's choice:** **Resilience4j** (Spring-native) applied to synchronous inter-service HTTP calls (`units-service` → `billing-service` unpaid-fee check) and Outbox publishing relays (`05-architecture/cross-cutting.md`).
 
 ---
 
@@ -440,22 +428,23 @@ for service mesh, Filebeat for log shipping) only makes sense once the orchestra
 
 | Pattern | Adopted? | Justification / ADR |
 |---------|---------|---------------------|
-| API Gateway | **Pending — no ADR yet.** See `overview.md` AT-001. | Needed to centralize JWT validation, rate limiting, and CORS across 9 services instead of duplicating them in each |
-| Database per Service | **Yes — no dedicated ADR yet, but already the standing decision in `02-domain/domain-map.md`.** Candidate ADR-004. | Each of the 9 bounded contexts already owns its Ubiquitous Language and data; sharing a database would silently reintroduce coupling the domain model was explicitly split to avoid |
-| Circuit Breaker | **Deferred — no ADR.** See `overview.md` §6/§7. | Blocked on API Gateway (AT-001) and message broker (AT-002) existing first; premature to add resilience around calls that don't happen yet |
-| Saga (choreographed) | **No — not needed by current scope.** | Every cross-context flow in `02-domain/domain-events.md` is a one-way reactive Policy, not a multi-step transaction requiring compensation; reconsider only if a future distributed transaction (e.g. v2 payments) requires it |
-| Outbox Pattern | **Recommended, not yet implemented — no ADR.** Candidate to bundle with the message-broker ADR-005. | Directly required by `02-domain/domain-events.md`'s own "at-least-once delivery" commitment — without it, a crash between saving and publishing silently loses an event (e.g. a generated fee never notifies the resident) |
-| CQRS | **Partial / implicit — `reports-service` only. No ADR.** | `reports-service` is, by its own FR19 definition, a read-only event-built projection — the read side of CQRS without a full write-side split; no other service's read/write models diverge enough to justify it |
-| Event Sourcing | **No.** | `ExpenseProposal`'s append-only `Approval[]` history already satisfies FR18's traceability requirement without replaying the full aggregate from events |
-| BFF | **No.** | `01-context/scope.md` confirms web-only, no mobile app in this MVP — a single client has no need for a BFF split |
+| **API Gateway** | **Yes — `ADR-006` (resolves `AT-001`).** | Spring Cloud Gateway (`:8080`, local fallback `:8090`) centralizes JWT verification, `X-User-*` header propagation, CORS, and rate limiting across all 9 services (`resi-complex-api-gateway`) |
+| **Database per Service** | **Yes — `ADR-004`.** | Each of the 9 Bounded Contexts owns a dedicated MySQL 8 database (`*_db`) managed with Flyway + `ddl-auto=validate`, preventing cross-context SQL joins and isolating Ley 1581 PII |
+| **Transactional Outbox + Idempotent Consumers** | **Yes — `ADR-005` (resolves `AT-002`).** | `outbox` and `processed_events` tables (`06-data/models.md`) guarantee at-least-once, duplicate-safe RabbitMQ delivery (`resicomplex.events`) without distributed 2PC locks |
+| **Circuit Breaker & Retries** | **Adopted — Resilience4j (`cross-cutting.md`).** | Protects synchronous inter-service HTTP calls (`units-service` → `billing-service` unpaid-fee check) and Outbox publishing relays |
+| **CQRS (Read Projections)** | **Yes — scoped to `reports-service` (`ADR-003`, `FR19`).** | `reports-service` maintains event-built read views (`requests_by_status_view`, `pending_fees_view`) in `reports_db` for sub-50 ms dashboards without cross-service joins |
+| **Saga (choreographed)** | **No — not needed in MVP.** | Cross-context flows in `02-domain/domain-events.md` are unidirectional reactive Policies rather than multi-step compensating transactions; revisit only in v2.0 online payments |
+| **Event Sourcing** | **No.** | `ExpenseProposal`'s append-only `approvals` table (`BR-15`) already satisfies FR18 auditability without full event replay overhead |
+| **BFF** | **No.** | `01-context/scope.md` confirms a single responsive Web client (`NFR-009`), so one API Gateway suffices |
 
 ---
 
 ## Correlations
 
-- Hexagonal Architecture (fully worked Java example) → `05-architecture/hexagonal-architecture.md`
-- ADR for pattern decisions → `05-architecture/decisions/` (candidates ADR-003 through ADR-006 — see `decisions/README.md`)
+- Hexagonal Architecture (worked Java example) → `05-architecture/hexagonal-architecture.md`
+- Formal ADR records (`ADR-001`–`ADR-006`) → `05-architecture/decisions/README.md`
 - Domain events these patterns support → `02-domain/domain-events.md`
-- Architectural technical debt tracking the open decisions (AT-001, AT-002) → `05-architecture/overview.md` §8
-- Outbox table would live in → `06-data/models.md` (per service, once written)
+- System overview & resolved technical debt → `05-architecture/overview.md`
+- Cross-cutting implementation standards → `05-architecture/cross-cutting.md`
+- Outbox & `processed_events` SQL schemas → `06-data/models.md`
 

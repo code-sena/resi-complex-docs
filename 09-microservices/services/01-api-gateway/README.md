@@ -1,81 +1,85 @@
-# API Gateway
+# API Gateway (`resi-complex-api-gateway`)
 
-> **Single entry point** to the system. Receives all frontend requests and routes them
-> to the corresponding microservice. It is the authoritative owner of the routing rules.
+> **Single Edge Entry Point & Security Perimeter** of `resi-complex` (`ADR-006`). Centralizes JWT signature/expiration verification, trusted `X-User-*` identity header propagation, CORS, per-client rate limiting, correlation ID injection, and reverse-proxy routing across all 9 internal microservices.
 
 ---
 
-## Location in the architecture
+## Location in the Architecture
 
 | Field | Value |
-|-------|-------|
+|---|---|
 | Number in catalog | 01 |
-| Local port | 8080 |
-| Repository | [Service repo URL] |
-| DB engine | — (stateless, no own DB) |
-| Communicates with | auth-service, [other services] |
-| Consumed by | Web frontend, mobile app, third-party tools |
+| Service Name | `resi-complex-api-gateway` (`api-gateway`) |
+| Canonical port | `8080` *(local Windows fallback: `8090` via `SERVER_PORT=8090`)* |
+| Repository | `https://github.com/resi-complex/resi-complex-api-gateway.git` |
+| DB engine | None (stateless; in-memory sliding-window rate limiter in MVP, Redis optional at multi-replica scale) |
+| Architecture layer | Hexagonal Architecture (`GatewayRoutingUseCasePort`, `JwtVerifierPort`, `Hs256GatewayJwtVerifierAdapter`) |
+| Tech stack | Java 25, Spring Boot 4.0.8 / Spring Cloud Gateway, Maven |
+| Communicates with | All 9 internal microservices (`:8081`–`:8089`) over private network |
+| Consumed by | Responsive Web UI (`12-ux-ui/`), Postman/Swagger dev clients |
 
 ---
 
-## Responsibilities (what this service DOES)
+## Responsibilities (What This Service DOES)
 
-- Route HTTP requests to the correct microservice based on the path (`/api/v1/auth/*`, `/api/v1/[resource]/*`)
-- Verify that the JWT token is valid before forwarding the request (delegating to auth-service)
-- Attach user context (`X-User-Id`, `X-User-Role`) as internal headers
-- Global rate limiting: maximum [100] requests per IP per minute
-- Unified access logs with correlationId
+- **Centralized JWT Verification (`ADR-006`, `NFR-004`):** Validates `Authorization: Bearer <jwt>` signature (`HS256` ≥ 256-bit secret; RS256/JWKS upgrade ready) and `exp` timestamp before forwarding protected routes.
+- **Anti-Spoofing & Context Propagation:** Strips any client-supplied `X-User-*` headers at the edge and injects verified `X-User-Id`, `X-User-Roles`, `X-User-Permissions`, and `X-Correlation-Id` headers downstream.
+- **Public Route Allowlist:** Permits unauthenticated passthrough exclusively for `GET /health`, `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, `POST /api/v1/auth/activate`, `POST /api/v1/auth/refresh`, and `GET /api/v1/auth/jwks`.
+- **Rate Limiting & CORS:** Enforces per-client IP throttling (`GATEWAY_RPM_LIMIT`, default `240 RPM`, HTTP `429`) and centralized CORS policy.
+- **Path-Based Routing:** Proxies `/api/v1/*` prefixes to the 9 canonical microservice ports (`:8081`–`:8089`).
 
-## Out of scope (what it does NOT do)
+## Out of Scope (What It Does NOT Do)
 
-- **Does not handle business logic** — only routes
-- **Does not verify resource permissions** — only verifies the JWT is valid (authorization is done by each service)
-- **Does not store data** — stateless
+- **No business logic or database access:** Never queries MySQL schemas or evaluates domain invariants.
+- **No `:own` / `:assigned` ownership evaluation:** Fine-grained ownership checks remain in each downstream service's Application layer (`P5`).
+- **No credential or refresh token storage:** Delegated strictly to `iam-service` (`:8081`).
 
 ---
 
-## How to run it locally
+## Canonical Route Table
+
+| Path Prefix | Downstream Service | Canonical URL Env Var | Canonical Port |
+|---|---|---|---|
+| `/api/v1/auth/**`, `/api/v1/users/**`, `/api/v1/roles/**` | `iam-service` | `IAM_SERVICE_URL` | `8081` |
+| `/api/v1/announcements/**`, `/api/v1/notifications/**` | `communications-service` | `COMMUNICATIONS_SERVICE_URL` | `8082` |
+| `/api/v1/units/**` | `units-service` | `UNITS_SERVICE_URL` | `8083` |
+| `/api/v1/fees/**`, `/api/v1/payments/**` | `billing-service` | `BILLING_SERVICE_URL` | `8084` |
+| `/api/v1/people/**`, `/api/v1/occupancies/**` | `people-service` | `PEOPLE_SERVICE_URL` | `8085` |
+| `/api/v1/maintenance-requests/**` | `maintenance-service` | `MAINTENANCE_SERVICE_URL` | `8086` |
+| `/api/v1/visits/**`, `/api/v1/correspondence/**`, `/api/v1/preauthorizations/**` | `access-control-service` | `ACCESS_CONTROL_SERVICE_URL` | `8087` |
+| `/api/v1/expense-proposals/**` | `finance-approval-service` | `FINANCE_APPROVAL_SERVICE_URL` | `8088` |
+| `/api/v1/reports/**` | `reports-service` | `REPORTS_SERVICE_URL` | `8089` |
+
+---
+
+## Local Startup
 
 ```bash
-# From the project root (starts all services)
-docker compose up -d api-gateway
+# Run locally (uses port 8090 by default on Windows if 8080 is busy; set SERVER_PORT=8080 in Docker)
+mvn spring-boot:run
 
-# Verify it is working
-curl http://localhost:8080/health
-```
+# Run automated routing, JWT & rate-limit test suite
+mvn test
 
-**Expected response:**
-```json
-{ "status": "ok", "timestamp": "2024-01-15T10:30:00Z" }
+# Verify gateway liveness
+curl http://127.0.0.1:8080/health
 ```
 
 ---
 
-## Related documents
+## Environment Variables
 
-- [data-model.md](./data-model.md) — Not applicable (no own DB)
-- [events.md](./events.md) — Not applicable (does not emit domain events)
-- [decisions.md](./decisions.md) — Gateway design decisions
-- [runbook.md](./runbook.md) — Operation in production
-- [API Contract](../../../07-api/contracts/openapi/api-gateway.yaml)
-
----
-
-## Design decisions
-
-See: `09-microservices/services/01-api-gateway/decisions.md`
-
-Relevant decisions include:
-- **ADR-002** — Why [Kong / Nginx / custom Express] was chosen as the gateway base
-- **ADR-003** — Authentication strategy at the gateway vs. in each service
+| Variable | Description | Default (Local) |
+|---|---|---|
+| `SERVER_PORT` | HTTP listen port (`8080` Docker canonical, `8090` Windows fallback) | `8090` |
+| `JWT_SECRET` | Shared HS256 signing secret (≥ 256 bits; injected via Vault/env in prod) | Local dev secret |
+| `GATEWAY_RPM_LIMIT` | Per-client requests per minute threshold | `240` |
+| `IAM_SERVICE_URL` .. `REPORTS_SERVICE_URL` | Downstream microservice base URLs (`http://localhost:8081`..`8089`) | Local ports |
 
 ---
 
-## Routing pattern
+## Documentation Links
 
-```
-Client → :8080/api/v1/auth/*        → auth-service :8081
-Client → :8080/api/v1/[resource]/*  → [name]-service :808N
-```
-
-Routing configuration: `[path to gateway configuration file]`
+- OpenAPI Contract → [`07-api/contracts/openapi/api-gateway.yaml`](../../../07-api/contracts/openapi/api-gateway.yaml)
+- Architecture Decision → [`ADR-006`](../../../05-architecture/decisions/records/ADR-006-jwt-authentication-strategy.md)
+- [data-model.md](./data-model.md) · [events.md](./events.md) · [decisions.md](./decisions.md) · [runbook.md](./runbook.md)

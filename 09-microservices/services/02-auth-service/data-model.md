@@ -1,109 +1,70 @@
-# Modelo de Datos — Auth Service
+# Data Model — `iam-service` (`iam_db`)
 
-> El Auth Service es el **dueño autoritativo** de la identidad del usuario.
-> Ningún otro servicio lee directamente estas tablas. Si necesitan datos del usuario,
-> los obtienen del token JWT o consultan vía API.
-
----
-
-## Motor de base de datos
-
-**Motor principal:** PostgreSQL — para usuarios, roles y tokens de actualización.
-**Motor de caché:** Redis — para la blacklist de tokens y contadores de intentos fallidos.
-
-**Justificación PostgreSQL:** Transacciones ACID son críticas: no puede existir un usuario
-sin rol asignado, y no pueden perderse registros de intentos de login fallidos.
-
-**Justificación Redis:** La verificación del token blacklist ocurre en cada request al gateway.
-Redis soporta búsquedas O(1) con TTL automático, sin necesidad de jobs de limpieza.
+> **Engine:** MySQL 8.0+ (`InnoDB`, `utf8mb4_unicode_ci`) — Dedicated database per `ADR-004`.  
+> **Migrations:** Flyway forward-only scripts (`V1__init_iam.sql`) with `spring.jpa.hibernate.ddl-auto=validate`.  
+> **Authoritative Source:** Synchronized 1:1 with `06-data/models.md`.
 
 ---
 
-## Esquema PostgreSQL
+## Entity-Relationship Diagram
 
-### Tabla: `users`
-
-**Propósito:** Credenciales de autenticación. Solo los datos necesarios para autenticar — perfil de aplicación va en el servicio de negocio correspondiente.
-
-| Campo | Tipo | Nullable | Descripción | Restricciones |
-|-------|------|----------|-------------|---------------|
-| id | UUID | No | Identificador único | PK, gen_random_uuid() |
-| email | VARCHAR(255) | No | Email del usuario | UNIQUE, NOT NULL |
-| password_hash | VARCHAR(255) | No | Hash bcrypt (cost 12) | NOT NULL |
-| email_verified | BOOLEAN | No | Si el email fue verificado | DEFAULT false |
-| failed_attempts | INT | No | Intentos de login fallidos | DEFAULT 0 |
-| locked_until | TIMESTAMPTZ | Sí | Bloqueado hasta esta fecha | NULL = no bloqueado |
-| created_at | TIMESTAMPTZ | No | Fecha de registro | DEFAULT NOW() |
-| updated_at | TIMESTAMPTZ | No | Última modificación | DEFAULT NOW() |
-| deleted_at | TIMESTAMPTZ | Sí | Soft delete | NULL = activo |
-
-**Índices:**
-| Nombre | Campos | Justificación |
-|--------|--------|---------------|
-| idx_users_email | email | Búsqueda por email en login (principal lookup) |
-| idx_users_deleted_at | deleted_at | Filtrar usuarios activos |
-
-### Tabla: `roles`
-
-**Propósito:** Catálogo de roles del sistema.
-
-| Campo | Tipo | Nullable | Descripción |
-|-------|------|----------|-------------|
-| id | UUID | No | PK |
-| name | VARCHAR(50) | No | Nombre del rol (UNIQUE): ADMIN, USER, VIEWER |
-| description | TEXT | Sí | Descripción legible del rol |
-| created_at | TIMESTAMPTZ | No | DEFAULT NOW() |
-
-### Tabla: `user_roles`
-
-**Propósito:** Relación many-to-many entre usuarios y roles.
-
-| Campo | Tipo | Nullable | Descripción |
-|-------|------|----------|-------------|
-| user_id | UUID | No | FK → users.id ON DELETE CASCADE |
-| role_id | UUID | No | FK → roles.id ON DELETE RESTRICT |
-| assigned_at | TIMESTAMPTZ | No | Cuándo se asignó el rol |
-| assigned_by | UUID | Sí | FK → users.id — quién asignó el rol |
-
-**PK compuesta:** (user_id, role_id)
-
-### Tabla: `refresh_tokens`
-
-**Propósito:** Tokens de actualización activos. Permite rotación y revocación.
-
-| Campo | Tipo | Nullable | Descripción |
-|-------|------|----------|-------------|
-| id | UUID | No | PK |
-| user_id | UUID | No | FK → users.id ON DELETE CASCADE |
-| token_hash | VARCHAR(255) | No | Hash SHA-256 del token (nunca el token real) |
-| expires_at | TIMESTAMPTZ | No | Expiración del refresh token |
-| revoked_at | TIMESTAMPTZ | Sí | NULL = activo, fecha = revocado |
-| created_at | TIMESTAMPTZ | No | DEFAULT NOW() |
-| user_agent | TEXT | Sí | Para mostrar sesiones activas al usuario |
+```mermaid
+erDiagram
+    users ||--o{ refresh_tokens : "issues / rotates"
+    users {
+        CHAR_36 id PK
+        VARCHAR_255 email UK
+        VARCHAR_255 password_hash
+        VARCHAR_20 role
+        VARCHAR_20 status
+        INT failed_attempts
+        TIMESTAMP locked_until
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+        TIMESTAMP deleted_at
+    }
+    refresh_tokens {
+        CHAR_36 id PK
+        CHAR_36 user_id FK
+        VARCHAR_255 token_hash
+        CHAR_36 family_id
+        BOOLEAN revoked
+        CHAR_36 replaced_by
+        TIMESTAMP expires_at
+        TIMESTAMP created_at
+    }
+    outbox {
+        CHAR_36 id PK
+        CHAR_36 event_id UK
+        VARCHAR_100 event_type
+        VARCHAR_100 aggregate_type
+        CHAR_36 aggregate_id
+        JSON payload
+        VARCHAR_150 routing_key
+        VARCHAR_20 status
+        INT retry_count
+        DATETIME_3 created_at
+    }
+```
 
 ---
 
-## Esquema Redis
+## Tables Owned by `iam_db`
 
-| Key pattern | Tipo | TTL | Propósito |
-|-------------|------|-----|-----------|
-| `blacklist:{jti}` | String | Hasta expiración del JWT | Tokens revocados (logout) |
-| `attempts:{email}` | String (int) | 5 minutos | Contador de intentos fallidos |
-| `locked:{email}` | String | Hasta unlock | Email bloqueado temporalmente |
+### 1. `users`
+- Stores one authentication account per user (`FR01`, `FR20`).
+- **Constraints:**
+  - `uq_users_email`: Unique email across active/historical accounts.
+  - `chk_users_role`: `role IN ('ADMINISTRATOR','BOARD','PERSON','MAINTENANCE_STAFF','SECURITY_GUARD')`.
+  - `chk_users_status`: `status IN ('PENDING_ACTIVATION','ACTIVE','INACTIVE','LOCKED')`.
+- **Security:** `password_hash` stores BCrypt hashes (cost ≥ 12); `failed_attempts` and `locked_until` enforce `BR-02` (5 failures → 15 min lock).
 
----
+### 2. `refresh_tokens`
+- Persists 7-day rotatable refresh tokens (`BR-03`, `ADR-006`).
+- **Constraints:**
+  - `fk_refresh_tokens_user`: `FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`.
+  - `token_hash` stores BCrypt hash of the opaque token (never plaintext).
+  - `family_id` + `revoked` + `replaced_by` enable immediate revocation of the entire session family if a rotated token is replayed.
 
-## Migraciones
-
-**Herramienta:** [Flyway / Alembic / golang-migrate — según el stack del proyecto]
-**Ubicación de scripts:** `src/migrations/` (ver guía en `_stacks/[tu-stack].md`)
-
-**Política:** Todas las migraciones son forward-only en producción. Los rollbacks de datos se hacen con migraciones adicionales, no revirtiendo scripts.
-
----
-
-## Correlaciones
-
-- Runbook del servicio → `runbook.md`
-- Eventos que emite → `events.md`
-- Política de seguridad y JWT → `00-governance/security-policy.md`
+### 3. `outbox`
+- Transactional Outbox table (`ADR-005`) storing `UserRegistered` and `UserActivated` events committed atomically with user mutations.

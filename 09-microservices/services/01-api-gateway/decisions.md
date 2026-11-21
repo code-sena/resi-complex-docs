@@ -1,56 +1,16 @@
-# Decisiones técnicas — API Gateway
+# Local Technical Decisions — `api-gateway`
 
-> Decisiones de diseño internas de este servicio que no están cubiertas por los ADRs
-> de arquitectura global. Cada decisión documenta el contexto, la elección y las consecuencias.
+## Decision 1 — Pure Java / Spring Stack Over Kong or NGINX Lua
+- **Context:** The entire `resi-complex` backend uses Java 25 + Spring Boot 4.0.8 (`01-context/scope.md`). Introducing Kong or custom OpenResty/Lua scripts would add a second operational runtime and configuration language.
+- **Decision:** Implement `resi-complex-api-gateway` in Java/Spring with Hexagonal Architecture (`GatewayRoutingApplicationService`, `JwtVerifierPort`), formalizing `ADR-006`.
+- **Consequences:** Single team skill set, fast JUnit 5 routing/security tests (4/4 passing), and seamless Docker packaging (`NFR-007`).
 
----
+## Decision 2 — Configurable Local Port Fallback (`:8090`) vs. Canonical Docker Port (`:8080`)
+- **Context:** Canonical architecture and Docker Compose expose the Gateway on `:8080`, but Windows developer workstations frequently have system services (`AgentService`) bound to `:8080`.
+- **Decision:** Default `server.port=${SERVER_PORT:8090}` for bare-metal local runs and inject `SERVER_PORT=8080` in Docker Compose and production containers.
+- **Consequences:** Zero port-collision friction on Windows workstations while preserving canonical `:8080` in containerized environments.
 
-## Decisión: Autenticación en gateway vs. en cada servicio
-
-**Fecha:** [fecha de la decisión]
-**Contexto:** Hay dos estrategias para verificar tokens JWT: (A) el gateway verifica el token
-y pasa el contexto del usuario como headers; (B) cada microservicio verifica su propio token.
-
-**Decisión:** Estrategia A — el gateway verifica el JWT (firma + expiración + blacklist)
-y adjunta `X-User-Id` y `X-User-Role` como headers internos. Los microservicios confían
-en estos headers sin re-verificar el token.
-
-**Consecuencias:**
-- Los microservicios son más simples (no necesitan librería JWT)
-- El gateway es el único punto que necesita acceso a la clave pública JWT
-- Si el gateway es comprometido, todos los servicios son vulnerables — mitigado con TLS interno
-- Los headers internos NO deben estar disponibles desde fuera del gateway (nginx/proxy stripea los headers X-User-* entrantes)
-
----
-
-## Decisión: Rate limiting por IP vs. por usuario
-
-**Fecha:** [fecha de la decisión]
-**Contexto:** El rate limiting se puede aplicar a la IP de origen o al usuario autenticado.
-
-**Decisión:** Rate limiting por IP para endpoints públicos (login, register), por user-id para
-endpoints autenticados.
-
-**Consecuencias:**
-- El rate limit por IP no penaliza a usuarios de la misma red (NAT corporativa)
-- El rate limit por user-id requiere que el token esté verificado antes de aplicar el límite
-- Implementación: bucket en Redis con key `rate:{ip}:{path}` o `rate:{userId}:{path}`
-
----
-
-## Decisión: Implementación del gateway
-
-**Fecha:** [fecha de la decisión]
-**Contexto:** Opciones: (A) Kong/NGINX Plus (solución gestionada), (B) Express/Fastify custom,
-(C) Envoy como sidecar.
-
-**Decisión:** [A / B / C] — [razón]
-
-**Consecuencias:** [trade-offs de la decisión]
-
----
-
-## Correlaciones
-
-- ADRs de arquitectura global → `05-architecture/decisions/records/`
-- Runbook del gateway → `runbook.md`
+## Decision 3 — Strip Untrusted `X-User-*` Headers at the Edge
+- **Context:** Downstream microservices trust `X-User-Id`, `X-User-Roles`, and `X-User-Permissions` propagated by the Gateway (`05-architecture/security-threat-model.md`, `TH-02`).
+- **Decision:** Unconditionally remove any client-supplied `X-User-*` headers before JWT verification and re-inject only cryptographically verified claims.
+- **Consequences:** Prevents header-injection privilege escalation from external callers.

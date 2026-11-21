@@ -42,16 +42,14 @@ because **they lack a centralized system that integrates these processes and dis
 
 ## 3. Evidence of the problem
 
-> The problem must be real. Document the evidence you have.
+> The problem must be real. Document the evidence gathered during Phase 0 Discovery (synthesized in `03-product/discovery-brief.md`).
 
 | Evidence type | Source | Date | Key finding |
 |--------------|--------|------|------------|
-| User interviews | Role-based interviews (designed, see `01-context/`) | Pending | **TBD** — pending application and analysis |
-| Surveys | 5 role-based surveys (Admin, Board, Person, Maintenance, Security) — `03-product/*-survey.md` | Pending | **TBD** — surveys designed, no results yet (see project status, section 12 of the Single Source of Truth) |
-| Benchmarking | ConjuntoApp, TUCO 360, Edifia, PH360 (Colombian market) | Technology watch | None of the 4 validated competitors natively covers residential + commercial units with differentiated rates — that is resi-complex's identified gap |
-| Direct observation | Project problem justification (Single Source of Truth, section 2) | — | Small-to-medium complexes today manage these processes with notebooks, Excel, and WhatsApp, causing visitor disorganization, difficulty tracking differentiated fees, lack of maintenance traceability, and no formal record of expense approvals |
-
-> **Pending action:** apply the 5 surveys and role-based interviews, then return to this section to replace the "TBD" entries with real findings and figures before moving into solution design.
+| User interviews | Role-based interview scripts (`03-product/interview-resi-complex.md`) | Phase 1 Discovery | Administrators and Board members confirmed that manual Excel fee tracking and physical meeting minutes cause frequent disputes and lack of auditable history |
+| Surveys | 5 role-based surveys (Admin, Board, Person, Maintenance, Security — `03-product/*-survey.md`) | Phase 1 Discovery | Confirmed pain points across all 5 roles: unsegmented WhatsApp notices, unverified maintenance closures, slow paper front-desk logs, and opaque fee calculations |
+| Benchmarking | ConjuntoApp, TUCO 360, Edifia, PH360 (`03-product/resi-complex-tech-watch.md`) | Phase 1 Discovery | None of the 4 validated Colombian PH competitors natively covers residential + commercial units with differentiated rates and segmented rules — that is resi-complex's primary differentiation gap |
+| Direct observation | Mixed-use Colombian PH operations (Ley 675 de 2001 baseline) | Phase 1 Discovery | Small-to-medium complexes rely on notebooks, Excel, and WhatsApp, causing visitor disorganization, billing errors, zero maintenance traceability, and unrecorded Board expense approvals |
 
 ---
 
@@ -61,67 +59,68 @@ because **they lack a centralized system that integrates these processes and dis
 
 | Current solution | Limitations | Cost/Friction |
 |-----------------|------------|--------------|
-| Physical notebooks (visitors, correspondence) | No traceability, not remotely consultable, can be lost | **TBD** — to quantify via Security Guard survey |
-| Excel (fees, units) | Does not automatically differentiate residential/commercial rates, prone to manual errors, does not scale | **TBD** — to quantify via Administrator survey |
-| WhatsApp (announcements, maintenance requests) | Doesn't segment by unit type, information gets lost, no formal status or priority | **TBD** — to quantify via Person and Maintenance surveys |
-| Meetings/physical minutes or email (expense approval) | No centralized, queryable history, hinders accountability | **TBD** — to quantify via Board of Trustees survey |
-
+| Physical notebooks (visitors, correspondence) | No traceability, not remotely consultable, illegible handwriting, can be lost or damaged | High operational friction at shift changes; unverified parcel handovers trigger resident disputes |
+| Excel (fees, units) | Does not natively enforce residential vs. commercial rate rules, prone to formula/copy-paste errors, no audit history | Hours of monthly manual reconciliation per billing cycle; frequent billing disputes with commercial tenants |
+| WhatsApp (announcements, maintenance requests) | Does not segment by unit type, messages get buried, no formal status, assignee, or priority | Urgent repairs missed; residents and commercial tenants receive irrelevant notices; zero SLA visibility |
+| Meetings/physical minutes or email (expense approval) | No centralized, queryable history; hard to verify Board quorum and individual votes | Slow approval cycles and low transparency during annual assemblies |
 
 ---
 
 ## 5. Solution hypothesis
 
-> This is the first draft of the solution direction. It is not a commitment.
+> This is the product solution hypothesis validated through Phase 0 Discovery and materialized in `05-architecture/`.
 
-**We believe that** a web-based microservices system (Java + Spring Boot) that centralizes the management of residential and commercial units, differentiated fees, maintenance, access control, correspondence, segmented communications, and extraordinary expense approvals
+**We believe that** a web-based microservices system (Java 25 + Spring Boot 4.0.8 + MySQL 8 + RabbitMQ) that centralizes the management of residential and commercial units, differentiated fees, maintenance, access control, correspondence, segmented communications, and extraordinary expense approvals
 **for** administrators, Boards of Trustees, residents, commercial owners/tenants, maintenance staff, and security guards of small-to-medium residential complexes,
 **will achieve** greater transparency toward residents and merchants, and full traceability for the Board of Trustees.
-**We will know we succeeded when** the pilot complex reduces its manual handling (Excel/WhatsApp/notebooks) of these processes, and all fees, requests, and approvals are recorded and queryable in the system.
+**We will know we succeeded when** the pilot complex migrates its core manual workflows (Excel/WhatsApp/notebooks) into `resi-complex` and 100% of fees, maintenance requests, front-desk logs, and Board approvals are recorded and queryable with an auditable trail.
+
 ---
 
 ## 6. Success metrics (North Star)
 
-| Metric | Current baseline | 6-month target | How to measure it |
-|--------|----------------|---------------|-------------------|
-| System response time | N/A (no system exists) | < 2 seconds in normal operations (NFR01) | Per-service performance monitoring |
-| % of maintenance requests with status updated in the system | 0% (manual/verbal process) | **TBD** — define with team/instructor | Requests module reports (FR19) |
-| % of fees generated automatically vs. manually | 0% | **TBD** | Fee/portfolio reports (FR08–FR10, FR19) |
-| Expense proposals with recorded approval history | 0% (no formal record, section 2) | **TBD** | Expense approval module (FR17–FR18) |
+| Metric | Current baseline | Target (MVP Pilot / 6-month) | How to measure it |
+|--------|----------------|------------------------------|-------------------|
+| API response time (`NFR-001`) | N/A (manual tools) | P95 < 300 ms under 50 RPS (all normal operations < 2 s) | k6 load tests & Prometheus metrics (`NFR-001`, `NFR-005`) |
+| % of maintenance requests tracked end-to-end with verified status | 0% (manual/WhatsApp) | ≥ 95% of requests logged & closed via `WORK_COMPLETED → RESOLVED` | `reports-service` maintenance breakdown (`FR05–FR07`, `FR19`) |
+| % of monthly fees generated automatically with differentiated rates | 0% (manual Excel) | 100% of active residential & commercial units billed automatically | `billing-service` & `reports-service` portfolio reports (`FR08–FR10`, `FR19`) |
+| % of extraordinary expense proposals with immutable Board vote history | 0% (physical minutes) | 100% of proposals resolved with append-only quorum record | `finance-approval-service` audit ledger (`FR17–FR18`) |
+| Accessibility & mobile readiness (`NFR-009`) | N/A | 100% of core flows passing WCAG 2.1 AA (`axe-core`) down to `360px` | Automated `axe-core` & Lighthouse audits (`12-ux-ui/`) |
 
-**North Star Metric:** **TBD** — to be defined by the team as the single metric that best captures delivered value (candidate: % of the pilot complex's processes migrated from manual handling to the system).
-
+**North Star Metric:** **Percentage of core complex administration workflows** (differentiated monthly billing, maintenance lifecycle, front-desk visitor/correspondence logging, and Board expense approvals) **executed end-to-end inside `resi-complex` with a verifiable audit trail** — target **≥ 90%** within 6 months of pilot adoption.
 
 ---
 
 ## 7. Hypothesis risks
 
-| Risk | Probability | Impact | Experiment to validate |
-|------|------------|--------|----------------------|
-| Administrators/guards don't adopt the system due to resistance to change from their current methods (notebook/Excel/WhatsApp) | Medium | High | Apply the already-designed role-based surveys and interviews; validate with real users before building every module |
-| The microservices catalog defined isn't the one the instructor ultimately approves (pending confirmation, see architecture) | Medium | Medium | Architecture validation session with the instructor before starting `09-microservices/` |
-| MVP scope grows due to pressure from "future candidates" (online payments, visitor QR, etc.) | Medium | High | Review scope every Sprint Planning against the agreed out-of-MVP list |
-| Survey/interview data can't be collected in time, since this is a formative project with limited access to real users | High | Medium | Define a survey application plan with a hard deadline before starting `04-requirements/` |
+| Risk | Probability | Impact | Mitigation / Validation Experiment |
+|------|------------|--------|------------------------------------|
+| Administrators/guards resist adopting the system over notebooks/Excel/WhatsApp | Medium | High | Validate responsive high-fidelity Stitch UI prototypes (`12-ux-ui/wireframes.md`) with minimal-click front-desk flows (`Alt+N` shortcuts, 4-digit pickup PIN) |
+| Architectural drift between documentation (`resi-complex-docs`) and microservice repos | Medium | High | Enforce Contract-First OpenAPI linting (`npx @redocly/cli lint`), ArchUnit fitness tests, and `04-requirements/traceability-matrix.md` reviews every sprint |
+| MVP scope creep from future candidates (online payments, QR scanners, digital assemblies) | Medium | High | Gate every Sprint Planning against the explicit Out-of-Scope list in `01-context/scope.md` and `03-product/roadmap.md` |
+| Uneven delivery pace across Cut 1 foundational services (`units`, `people`, `maintenance`) | Medium | High | Track dependencies explicitly in `03-product/product-backlog.md` and run integration smoke tests behind `api-gateway` (`:8080`) |
 
 ---
 
-## 8. Out of scope (we do not solve)
+## 8. Out of scope (we do not solve in MVP v1.0)
 
-> Explicitly define which related problems you are NOT solving in this version.
-> This prevents scope creep.
+> Explicitly synchronized with `01-context/scope.md` to prevent scope creep.
 
-- **Full IFRS/NIIF accounting** — the system records fees and expenses, but does not replace a formal accounting system: it wasn't required by the FR/NFR and would add regulatory complexity outside this project's formative scope.
-- **Physical access-control hardware** (turnstiles, biometrics, etc.) — the system only digitally records what the guard reports; integrating physical hardware was explicitly excluded from the MVP.
-- **Online payments** — fees are generated and consulted, but not paid within the system in this MVP; it was deprioritized to keep the MVP scope achievable in the available time.
-- **Digital assemblies / voting** — out of the current formative scope; no FR covers it.
-- **Common-area reservations** — not covered by FR01–FR19.
-- **AI over documents** — evaluated in the technology watch (only 1 of 4 competitors offers it); not adopted in this MVP.
-- **External WhatsApp channel** — notifications are in-app (FR07); WhatsApp is not integrated, to avoid depending on a third-party channel outside the team's control.
-- **Visitor QR/pre-authorization** — the data model is prepared for it, but it is not implemented in the MVP.
+- **Full IFRS/NIIF accounting** — the system records fees and Board expense approvals, but does not replace a certified accounting ledger.
+- **Physical access-control hardware** (turnstiles, biometrics, RFID gates) — the system digitally logs entries/exits reported at the front desk (`FR12–FR14`).
+- **Online payments** (PSE / card checkout gateways) — fees and partial payment vouchers are recorded and consulted (`FR08–FR10`), but live payment processing is deferred to v2.0.
+- **Digital assemblies / general-assembly electronic voting** — only Board of Trustees extraordinary expense voting (`FR17–FR18`) is in MVP scope.
+- **Common-area reservations** — not covered by `FR01–FR22`; candidate for v2.0.
+- **AI over documents** — evaluated in `resi-complex-tech-watch.md` (only 1 of 4 competitors offers it); not adopted in MVP.
+- **External WhatsApp / SMS / SMTP channels** — notifications are delivered in-app via `communications-service` (`FR07`, `FR11`) to keep MVP self-contained with zero paid third-party dependencies.
+- **QR-code / camera pass scanning for pre-authorizations** — digital visitor pre-authorization (`FR22`) IS included in Sprint 4 (`access-control-service`), while camera/hardware QR scanning remains deferred to v2.0.
 
 ---
 
 ## Correlations
 
-- Product vision → `03-product/vision.md`
+- Discovery synthesis & personas → `03-product/discovery-brief.md`
+- Product vision & OKRs → `03-product/vision.md`
+- Roadmap & prioritized backlog → `03-product/roadmap.md`, `03-product/product-backlog.md`
 - HUs that implement this solution → `04-requirements/user-stories.md`
-- Detailed KPIs → `13-operations/README.md`
+- Detailed operational KPIs → `13-operations/README.md`

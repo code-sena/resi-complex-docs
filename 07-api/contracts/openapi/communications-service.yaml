@@ -1,0 +1,344 @@
+openapi: 3.0.3
+info:
+  title: Communications Service API — resi-complex
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  description: |
+    **Segmented Announcements & Reactive In-App Notifications Authority** (`resi-complex-communications-service`,
+    `communications_db`). Publishes official administrative announcements segmented by unit classification
+    (`ALL`, `RESIDENTIAL_ONLY`, `COMMERCIAL_ONLY`) and priority (`INFORMATIVE`, `IMPORTANT`, `EMERGENCY`)
+    (`FR11`), and delivers event-driven in-app notifications in reaction to operational domain events such as
+    maintenance status changes (`FR07`), fee generation, incoming correspondence, and Board expense proposals.
+
+    ## Authentication & Authorization
+    - `ADMINISTRATOR`: Create, update, soft-delete, and read all announcements (`announcements:*`), plus own notifications.
+    - `BOARD`, `MAINTENANCE_STAFF`, `SECURITY_GUARD`: Read `ALL` announcements and own in-app notifications.
+    - `PERSON`: Read `ALL` announcements plus announcements matching their active unit classification (`RESIDENTIAL_ONLY` or `COMMERCIAL_ONLY`), and manage read state of own in-app notifications.
+
+servers:
+  - url: http://127.0.0.1:8082
+    description: Local communications-service (direct port 8082)
+  - url: http://127.0.0.1:8080
+    description: Local API Gateway (canonical port 8080)
+
+tags:
+  - name: Health
+    description: Service liveness and MySQL connectivity
+  - name: Announcements
+    description: Segmented complex announcements & emergency broadcasts (FR11)
+  - name: Notifications
+    description: Event-driven in-app user notifications (FR07)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: getCommunicationsServiceHealth
+      summary: Health check for communications-service
+      description: Returns liveness status and MySQL (`communications_db`) connectivity. Public endpoint.
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/announcements:
+    get:
+      operationId: listAnnouncements
+      summary: List announcements segmented for the authenticated user (FR11)
+      description: |
+        Returns paginated active announcements. For `PERSON` users, results are automatically filtered by their
+        active unit classification (`ALL` + `RESIDENTIAL_ONLY` or `COMMERCIAL_ONLY`).
+        **Allowed roles:** `ADMINISTRATOR`, `BOARD`, `PERSON`, `MAINTENANCE_STAFF`, `SECURITY_GUARD` (`announcements:read`).
+      tags:
+        - Announcements
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/PageParam'
+        - $ref: './_shared.yaml#/components/parameters/LimitParam'
+        - name: scope
+          in: query
+          description: Optional audience scope filter
+          schema:
+            $ref: '#/components/schemas/AnnouncementScope'
+        - name: priority
+          in: query
+          description: Optional urgency filter
+          schema:
+            $ref: '#/components/schemas/AnnouncementPriority'
+      responses:
+        '200':
+          description: Paginated list of announcements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAnnouncementsResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+
+    post:
+      operationId: publishAnnouncement
+      summary: Publish a segmented announcement or emergency broadcast (FR11, HU-COMM-001)
+      description: |
+        Persists a new announcement in `communications_db.announcements` and publishes `AnnouncementPublished`
+        via Transactional Outbox.
+        **Allowed roles:** `ADMINISTRATOR` (`announcements:create`).
+      tags:
+        - Announcements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAnnouncementRequest'
+      responses:
+        '201':
+          description: Announcement published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+
+  /api/v1/announcements/{id}:
+    get:
+      operationId: getAnnouncementById
+      summary: Get single announcement detail
+      description: |
+        Returns full announcement payload if the caller's scope allows access.
+        **Allowed roles:** `ADMINISTRATOR`, `BOARD`, `PERSON`, `MAINTENANCE_STAFF`, `SECURITY_GUARD`.
+      tags:
+        - Announcements
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Announcement retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+    delete:
+      operationId: deleteAnnouncement
+      summary: Soft-delete an announcement
+      description: |
+        Marks an announcement as logically deleted (`deleted_at`), hiding it from public feeds while preserving audit history.
+        **Allowed roles:** `ADMINISTRATOR` (`announcements:delete`).
+      tags:
+        - Announcements
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Announcement soft-deleted
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+  /api/v1/notifications/me:
+    get:
+      operationId: listMyNotifications
+      summary: List own in-app reactive notifications (FR07, HU-MAINT-003)
+      description: |
+        Returns paginated in-app notifications generated reactively from domain events (`MaintenanceRequestStatusUpdated`,
+        `FeeGenerated`, `CorrespondenceReceived`, `ExpenseProposalCreated/Approved/Rejected`) for the authenticated user (`X-User-Id`).
+        **Allowed roles:** `ADMINISTRATOR`, `BOARD`, `PERSON`, `MAINTENANCE_STAFF`, `SECURITY_GUARD` (`notifications:read:own`).
+      tags:
+        - Notifications
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/PageParam'
+        - $ref: './_shared.yaml#/components/parameters/LimitParam'
+        - name: unreadOnly
+          in: query
+          description: When true, returns only unread notifications
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Paginated list of in-app notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationsResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+
+  /api/v1/notifications/{id}/read:
+    patch:
+      operationId: markNotificationAsRead
+      summary: Mark an own in-app notification as read (FR07)
+      description: |
+        Marks the specified notification as read. Ownership verified against `X-User-Id`.
+        **Allowed roles:** `ADMINISTRATOR`, `BOARD`, `PERSON`, `MAINTENANCE_STAFF`, `SECURITY_GUARD` (`notifications:read:own`).
+      tags:
+        - Notifications
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InAppNotificationResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, service, database]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+          example: communications-service
+        database:
+          type: string
+          enum: [connected, disconnected]
+
+    AnnouncementScope:
+      type: string
+      enum:
+        - ALL
+        - RESIDENTIAL_ONLY
+        - COMMERCIAL_ONLY
+
+    AnnouncementPriority:
+      type: string
+      enum:
+        - INFORMATIVE
+        - IMPORTANT
+        - EMERGENCY
+
+    CreateAnnouncementRequest:
+      type: object
+      required: [title, body, scope]
+      properties:
+        title:
+          type: string
+          minLength: 5
+          maxLength: 150
+          example: Scheduled Water Tank Cleaning — Residential Towers
+        body:
+          type: string
+          minLength: 10
+          maxLength: 5000
+          example: Water supply in residential towers will be suspended Saturday from 08:00 to 12:00.
+        scope:
+          $ref: '#/components/schemas/AnnouncementScope'
+        priority:
+          $ref: '#/components/schemas/AnnouncementPriority'
+
+    AnnouncementResponse:
+      type: object
+      required: [id, title, body, scope, priority, publishedBy, createdAt]
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        title:
+          type: string
+        body:
+          type: string
+        scope:
+          $ref: '#/components/schemas/AnnouncementScope'
+        priority:
+          $ref: '#/components/schemas/AnnouncementPriority'
+        publishedBy:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        createdAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+
+    PaginatedAnnouncementsResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnnouncementResponse'
+        meta:
+          $ref: './_shared.yaml#/components/schemas/PaginatedMeta'
+
+    InAppNotificationResponse:
+      type: object
+      required: [id, recipientUserId, sourceEventType, title, message, read, createdAt]
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        recipientUserId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        sourceEventType:
+          type: string
+          example: MaintenanceRequestStatusUpdated
+        referenceId:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+          example: Maintenance request updated to WORK_COMPLETED
+        message:
+          type: string
+          example: Please review and verify repair ticket #MR-104.
+        read:
+          type: boolean
+          example: false
+        createdAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+
+    PaginatedNotificationsResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InAppNotificationResponse'
+        meta:
+          $ref: './_shared.yaml#/components/schemas/PaginatedMeta'

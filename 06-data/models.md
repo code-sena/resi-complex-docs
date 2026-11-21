@@ -71,11 +71,11 @@ read query on soft-deletable tables filters `WHERE deleted_at IS NULL` (backed b
 ## Service: `iam-service`
 
 **Database:** `iam_db`  
-**DB Engine:** MySQL 8 — ACID transactions for credential, RBAC role, and refresh-token rotation integrity (`FR01`, `00-governance/security-policy.md`).
+**DB Engine:** MySQL 8 — ACID transactions for credential, RBAC role, staff provisioning/activation, and refresh-token rotation integrity (`FR01`, `FR20`, `00-governance/security-policy.md`).
 
 ### Table: `users`
 
-**Purpose:** One authentication account per person or staff member using the system (`FR01`).
+**Purpose:** One authentication account per person or staff member using the system (`FR01`, `FR20`).
 
 ```sql
 CREATE TABLE users (
@@ -229,11 +229,11 @@ CREATE TABLE commercial_establishments (
 ## Service: `people-service`
 
 **Database:** `people_db`  
-**DB Engine:** MySQL 8 — Relational ownership of `person` profiles and their `unit_occupancies` lifecycle (`FR01`, `FR03`).
+**DB Engine:** MySQL 8 — Relational ownership of `person` profiles and their `unit_occupancies` lifecycle (`FR21`).
 
 ### Table: `person`
 
-**Purpose:** A Resident or Commercial Owner/Tenant, per the glossary's single-entity rule (`FR01`).
+**Purpose:** A Resident or Commercial Owner/Tenant, per the glossary's single-entity rule (`FR21`).
 
 ```sql
 CREATE TABLE person (
@@ -260,7 +260,7 @@ CREATE TABLE person (
 
 ### Table: `unit_occupancies`
 
-**Purpose:** Tracks formal tenancy, ownership, and lease lifecycle for Units (`FR01`, `FR03`). Associates a `person` with a `unit` under an explicit role (`OWNER` / `TENANT`), status, and validity dates.
+**Purpose:** Tracks formal tenancy, ownership, and lease lifecycle for Units (`FR21`). Associates a `person` with a `unit` under an explicit role (`OWNER` / `TENANT`), status, and validity dates.
 
 ```sql
 CREATE TABLE unit_occupancies (
@@ -506,7 +506,7 @@ CREATE TABLE announcements (
 ## Service: `access-control-service`
 
 **Database:** `access_control_db`  
-**DB Engine:** MySQL 8 — Front-desk operational log across four tightly coupled tables (`FR12`–`FR16`).
+**DB Engine:** MySQL 8 — Front-desk operational log across four tightly coupled tables (`FR12`–`FR16`, `FR22`).
 
 ### Table: `visits`
 
@@ -638,7 +638,7 @@ CREATE TABLE correspondence (
 
 ## Service: `finance-approval-service`
 
-**Database:** `finance_approval_db`  
+**Database:** `finance_approval_db` *(Phase-1 local repository alias: `finance_db`, configured via `DB_URL`)*  
 **DB Engine:** MySQL 8 — Quorum-based extraordinary expense workflow and immutable Board voting audit log (`FR17`–`FR18`).
 
 ### Table: `expense_proposals`

@@ -1,230 +1,202 @@
-# Navigation Map
+# Navigation Map — resi-complex
 
-> Defines the screen structure of the system, how screens connect to each other, and what routes
-> exist. It is the reference when frontend and backend discuss what endpoints exist
-> or how to reach a feature.
+> Defines the complete frontend screen structure covering **all 22 User Stories (`FR01`–`FR22`)**,
+> role-based access rules across the **5 canonical authentication roles** (`00-governance/security-policy.md`),
+> backing microservices (`09-microservices/service-catalog.md`), and cross-role user flows.
+> **Last Synchronized:** 2026-11-21
 
 ---
 
-## Frontend route structure
+## Frontend Route Structure
 
 ```
-/                              → Landing — redirects to /login if not authenticated
+/                                      → Landing — redirects to /login if not authenticated
 │
-├── /login                     → HU-IAM-001 — Login form (Public)
+├── /login                             → HU-IAM-001 (FR01) — Login form (Public)
+├── /activate                          → HU-IAM-002 (FR20) — Provisioned account activation (Public token)
 │
-├── /dashboard                 → Home after login; content varies by role (All roles)
+├── /dashboard                         → Home after login; widgets scoped by role (All 5 roles)
 │
-├── /units                     → Units Management (Administrator)
-│   ├── /new                   → HU-UNIT-001 — Register a unit (residential/commercial)
+├── /admin/users                       → HU-IAM-002 (FR20) — Staff account provisioning & role roster (ADMINISTRATOR)
+│
+├── /units                             → Units Management (ADMINISTRATOR)
+│   ├── /new                           → HU-UNIT-001 (FR02) — Register a unit (RESIDENTIAL / COMMERCIAL)
 │   └── /:unitId
-│       ├── /                  → Unit detail, incl. commercial establishment data (HU-UNIT-003)
-│       └── /edit               → HU-UNIT-002 — Edit or delete a unit
+│       ├── /                          → HU-UNIT-003 (FR04) — Unit detail + 1:1 commercial establishment profile
+│       └── /edit                      → HU-UNIT-002 (FR03) — Edit or soft-delete unit (BR-05 debt guard)
 │
-├── /people                    → People Management (Administrator)
-│   ├── /new                   → HU-PPL-001 — Register a Person linked to a unit
-│   └── /:personId             → Person detail
+├── /people                            → People & Occupancy Management (ADMINISTRATOR)
+│   ├── /new                           → HU-PPL-001 (FR21) — Register Person + initial Unit Occupancy
+│   └── /:personId
+│       ├── /                          → Person detail & occupancy history
+│       └── /occupancies               → HU-PPL-002 (FR21, BR-07) — Manage & deactivate tenant occupancies
 │
-├── /requests                  → Maintenance requests
-│   ├── /                      → List — scope depends on role (see Access matrix)
-│   ├── /new                   → HU-MAINT-001 — Create a request (Person)
-│   └── /:requestId            → Detail — assign/update status (HU-MAINT-002, HU-MAINT-003)
+├── /requests                          → Maintenance Requests (FR05, FR06, FR07)
+│   ├── /                              → List — scoped by role (all / :own / :assigned)
+│   ├── /new                           → HU-MAINT-001 (FR05) — Create private-unit or common-area request
+│   └── /:requestId                    → HU-MAINT-002/003 (FR06–FR07) — Assign, progress, verify/reject WORK_COMPLETED
 │
-├── /fees                      → Administration fees
-│   ├── /                      → List — Administrator sees all, Person sees only their own
-│   └── /:feeId                → HU-BILL-002 — Fee detail and payment status
+├── /fees                              → Administration Fees (FR08, FR09, FR10)
+│   ├── /                              → List — ADMINISTRATOR/BOARD all; PERSON :own only
+│   └── /:feeId                        → HU-BILL-002 (FR10) — Account statement, partial payment voucher & receipt
 │
-├── /announcements             → HU-COMM-001
-│   ├── /                      → List, segmented by unit type (all authenticated roles read)
-│   └── /new                   → Publish a segmented announcement (Administrator)
+├── /announcements                     → Segmented Communications & Alerts (FR11)
+│   ├── /                              → List segmented by unit type (All 5 roles read)
+│   └── /new                           → HU-COMM-001 (FR11) — Publish segmented / emergency announcement (ADMINISTRATOR)
 │
-├── /front-desk                → Security Guard's operational screens
+├── /front-desk                        → Security Guard Operational Screens (SECURITY_GUARD)
 │   ├── /visits
-│   │   ├── /                  → Active/recent visits log
-│   │   ├── /new                → HU-ACC-001 + HU-ACC-002 — Log entry (+ optional vehicle)
-│   │   └── /:visitId/exit      → HU-ACC-003 — Log a visitor's exit
+│   │   ├── /                          → HU-ACC-001/003 (FR12, FR14) — Active/recent visits log
+│   │   ├── /new                       → HU-ACC-001/002 (FR12–FR13) — Log visitor entry (+ optional vehicle)
+│   │   └── /:visitId/exit             → HU-ACC-003 (FR14) — Record visitor departure timestamp
+│   ├── /preauthorizations             → HU-ACC-006 (FR22) — Check-in pre-authorized visitors into active visits
 │   └── /correspondence
-│       ├── /                  → Pending correspondence log
-│       └── /new                → HU-ACC-004 — Log incoming correspondence
+│       ├── /                          → HU-ACC-004/005 (FR15–FR16) — Pending parcels & 4-digit PIN delivery
+│       └── /new                       → HU-ACC-004 (FR15) — Log incoming parcel/letter + generate pickup PIN
 │
-├── /correspondence             → HU-ACC-005 — Person's own pending correspondence (read-only)
+├── /correspondence                    → HU-ACC-005 (FR16) — PERSON's own pending parcels & pickup PIN (:own)
+├── /preauthorizations                 → HU-ACC-006 (FR22) — PERSON's own visitor pre-authorizations (:own)
 │
-├── /expenses                   → Extraordinary expense proposals
-│   ├── /                      → List (Administrator: all; Board of Trustees: pending review)
-│   ├── /new                   → HU-FIN-001 — Create a proposal (Administrator)
-│   └── /:proposalId            → HU-FIN-002 — Detail + approve/reject (Board of Trustees)
+├── /expenses                          → Extraordinary Expense Approvals (FR17, FR18)
+│   ├── /                              → List (ADMINISTRATOR: all; BOARD: pending review & history)
+│   ├── /new                           → HU-FIN-001 (FR17) — Create expense proposal with quorum & deadline
+│   └── /:proposalId                   → HU-FIN-002 (FR18) — Proposal detail + immutable BOARD vote (approve/reject)
 │
-├── /reports                    → HU-REP-001 — Requests-by-status and pending-fee reports (Administrator)
+├── /reports                           → HU-REP-001 (FR19) — Requests-by-status & fee arrears (ADMINISTRATOR, BOARD)
 │
-└── /profile                    → Authenticated user's own profile (All roles)
+└── /profile                           → Authenticated user profile & in-app notifications (All 5 roles)
 ```
 
 ---
 
-## Screen map
+## Screen Map (26 Screens · 100% of `FR01`–`FR22` Covered)
 
-| Screen | Route | Component | Minimum role | Backend service | Related HU |
-|--------|-------|-----------|--------------|------------------|-------------|
-| Login | `/login` | `LoginPage` | Public | `iam-service` | HU-IAM-001 |
-| Dashboard | `/dashboard` | `DashboardPage` | Any authenticated role | Aggregates from `reports-service` | — |
-| Units list | `/units` | `UnitListPage` | `ADMINISTRATOR` | `units-service` | HU-UNIT-001, HU-UNIT-002 |
-| Register unit | `/units/new` | `UnitFormPage` | `ADMINISTRATOR` | `units-service` | HU-UNIT-001 |
-| Unit detail | `/units/:unitId` | `UnitDetailPage` | `ADMINISTRATOR` | `units-service` | HU-UNIT-003 |
-| People list | `/people` | `PersonListPage` | `ADMINISTRATOR` | `people-service` | HU-PPL-001 |
-| Register person | `/people/new` | `PersonFormPage` | `ADMINISTRATOR` | `people-service` | HU-PPL-001 |
-| Requests list | `/requests` | `RequestListPage` | `PERSON` (own) / `MAINTENANCE_STAFF` (assigned) / `ADMINISTRATOR` (all) | `maintenance-service` | HU-MAINT-001, HU-MAINT-002 |
-| Create request | `/requests/new` | `RequestFormPage` | `PERSON` | `maintenance-service` | HU-MAINT-001 |
-| Request detail | `/requests/:requestId` | `RequestDetailPage` | `PERSON` (own) / `MAINTENANCE_STAFF` (assigned) / `ADMINISTRATOR` | `maintenance-service` | HU-MAINT-002, HU-MAINT-003 |
-| Fees list | `/fees` | `FeeListPage` | `PERSON` (own) / `ADMINISTRATOR` (all) | `billing-service` | HU-BILL-001, HU-BILL-002 |
-| Fee detail | `/fees/:feeId` | `FeeDetailPage` | `PERSON` (own) / `ADMINISTRATOR` | `billing-service` | HU-BILL-002 |
-| Announcements list | `/announcements` | `AnnouncementListPage` | Any authenticated role | `communications-service` | HU-COMM-001 |
-| Publish announcement | `/announcements/new` | `AnnouncementFormPage` | `ADMINISTRATOR` | `communications-service` | HU-COMM-001 |
-| Front desk — visits | `/front-desk/visits` | `VisitLogPage` | `SECURITY_GUARD` | `access-control-service` | HU-ACC-001, HU-ACC-003 |
-| Log a visit | `/front-desk/visits/new` | `VisitFormPage` | `SECURITY_GUARD` | `access-control-service` | HU-ACC-001, HU-ACC-002 |
-| Front desk — correspondence | `/front-desk/correspondence` | `CorrespondenceLogPage` | `SECURITY_GUARD` | `access-control-service` | HU-ACC-004 |
-| My correspondence | `/correspondence` | `MyCorrespondencePage` | `PERSON` (own) | `access-control-service` | HU-ACC-005 |
-| Expenses list | `/expenses` | `ExpenseListPage` | `ADMINISTRATOR` / `BOARD` | `finance-approval-service` | HU-FIN-001, HU-FIN-002 |
-| Create expense proposal | `/expenses/new` | `ExpenseFormPage` | `ADMINISTRATOR` | `finance-approval-service` | HU-FIN-001 |
-| Expense proposal detail | `/expenses/:proposalId` | `ExpenseDetailPage` | `ADMINISTRATOR` (read) / `BOARD` (approve/reject) | `finance-approval-service` | HU-FIN-002 |
-| Reports | `/reports` | `ReportsPage` | `ADMINISTRATOR` | `reports-service` | HU-REP-001 |
-| Profile | `/profile` | `ProfilePage` | Any authenticated role | `iam-service` / `people-service` | — |
+| # | Screen | Route | Component | Minimum Role | Backing Microservice | Related HU / FR |
+|---|---|---|---|---|---|---|
+| 01 | Login | `/login` | `LoginPage` | Public | `iam-service` (`:8081`) | `HU-IAM-001` (`FR01`) |
+| 02 | Account Activation | `/activate` | `ActivationPage` | Public (token) | `iam-service` (`:8081`) | `HU-IAM-002` (`FR20`) |
+| 03 | Dashboard | `/dashboard` | `DashboardPage` | Any authenticated role | `reports-service` (`:8089`) + role feeds | Stitch `#02` |
+| 04 | Staff Accounts | `/admin/users` | `UserProvisioningPage` | `ADMINISTRATOR` | `iam-service` (`:8081`) | `HU-IAM-002` (`FR20`) |
+| 05 | Units List | `/units` | `UnitListPage` | `ADMINISTRATOR` | `units-service` (`:8083`) | `HU-UNIT-001`, `HU-UNIT-002` (`FR02`–`FR03`) |
+| 06 | Register Unit | `/units/new` | `UnitFormPage` | `ADMINISTRATOR` | `units-service` (`:8083`) | `HU-UNIT-001` (`FR02`) |
+| 07 | Unit Detail & Establishment | `/units/:unitId` | `UnitDetailPage` | `ADMINISTRATOR` | `units-service` (`:8083`) | `HU-UNIT-003` (`FR04`) |
+| 08 | Edit / Delete Unit | `/units/:unitId/edit` | `UnitEditPage` | `ADMINISTRATOR` | `units-service` (`:8083`) | `HU-UNIT-002` (`FR03`) |
+| 09 | People List | `/people` | `PersonListPage` | `ADMINISTRATOR` | `people-service` (`:8085`) | `HU-PPL-001` (`FR21`) |
+| 10 | Register Person | `/people/new` | `PersonFormPage` | `ADMINISTRATOR` | `people-service` (`:8085`) | `HU-PPL-001` (`FR21`) |
+| 11 | Person Occupancies | `/people/:personId/occupancies` | `OccupancyHistoryPage` | `ADMINISTRATOR` | `people-service` (`:8085`) | `HU-PPL-002` (`FR21`) |
+| 12 | Requests List | `/requests` | `RequestListPage` | `PERSON` (`:own`) / `MAINTENANCE_STAFF` (`:assigned`) / `ADMINISTRATOR` / `BOARD` | `maintenance-service` (`:8086`) | `HU-MAINT-001`, `HU-MAINT-002` (`FR05`–`FR06`) · Stitch `#03` |
+| 13 | Create Request | `/requests/new` | `RequestFormPage` | `PERSON` / `ADMINISTRATOR` | `maintenance-service` (`:8086`) | `HU-MAINT-001` (`FR05`) |
+| 14 | Request Detail & Verify | `/requests/:requestId` | `RequestDetailPage` | `PERSON` (`:own`) / `MAINTENANCE_STAFF` (`:assigned`) / `ADMINISTRATOR` / `BOARD` | `maintenance-service` (`:8086`) + `communications-service` | `HU-MAINT-002`, `HU-MAINT-003` (`FR06`–`FR07`) |
+| 15 | Fees List | `/fees` | `FeeListPage` | `PERSON` (`:own`) / `ADMINISTRATOR` / `BOARD` (read) | `billing-service` (`:8084`) | `HU-BILL-001`, `HU-BILL-002` (`FR08`–`FR10`) |
+| 16 | Fee Detail & Payment | `/fees/:feeId` | `FeeDetailPage` | `PERSON` (`:own`) / `ADMINISTRATOR` / `BOARD` (read) | `billing-service` (`:8084`) | `HU-BILL-002` (`FR10`) |
+| 17 | Announcements Feed | `/announcements` | `AnnouncementListPage` | Any authenticated role | `communications-service` (`:8082`) | `HU-COMM-001` (`FR11`) |
+| 18 | Publish Announcement | `/announcements/new` | `AnnouncementFormPage` | `ADMINISTRATOR` | `communications-service` (`:8082`) | `HU-COMM-001` (`FR11`) |
+| 19 | Front Desk — Visits | `/front-desk/visits` | `VisitLogPage` | `SECURITY_GUARD` / `ADMINISTRATOR` (read) | `access-control-service` (`:8087`) | `HU-ACC-001`, `HU-ACC-003` (`FR12`, `FR14`) · Stitch `#05` |
+| 20 | Log Visit (+ Vehicle) | `/front-desk/visits/new` | `VisitFormPage` | `SECURITY_GUARD` | `access-control-service` (`:8087`) | `HU-ACC-001`, `HU-ACC-002` (`FR12`–`FR13`) |
+| 21 | Front Desk — Correspondence | `/front-desk/correspondence` | `CorrespondenceLogPage` | `SECURITY_GUARD` | `access-control-service` (`:8087`) | `HU-ACC-004`, `HU-ACC-005` (`FR15`–`FR16`) |
+| 22 | Front Desk — Pre-Auth Check-In | `/front-desk/preauthorizations` | `PreAuthCheckInPage` | `SECURITY_GUARD` | `access-control-service` (`:8087`) | `HU-ACC-006` (`FR22`) |
+| 23 | My Correspondence & Pre-Auths | `/correspondence`, `/preauthorizations` | `MyFrontDeskPortalPage` | `PERSON` (`:own`) | `access-control-service` (`:8087`) | `HU-ACC-005`, `HU-ACC-006` (`FR16`, `FR22`) |
+| 24 | Expenses List & Create | `/expenses`, `/expenses/new` | `ExpenseListPage` / `ExpenseFormPage` | `ADMINISTRATOR` / `BOARD` (read) | `finance-approval-service` (`:8088`) | `HU-FIN-001` (`FR17`) |
+| 25 | Expense Detail & Vote | `/expenses/:proposalId` | `ExpenseDetailPage` | `ADMINISTRATOR` (read) / `BOARD` (vote) | `finance-approval-service` (`:8088`) | `HU-FIN-002` (`FR18`) · Stitch `#04` |
+| 26 | Reports & Profile | `/reports`, `/profile` | `ReportsPage`, `ProfilePage` | `/reports`: `ADMINISTRATOR`, `BOARD` · `/profile`: All 5 roles | `reports-service` (`:8089`), `iam-service`, `communications-service` | `HU-REP-001` (`FR19`), `HU-MAINT-003` (`FR07`) |
 
 ---
 
-## Access matrix
+## 5-Role Access Matrix (Synchronized 1:1 with `00-governance/security-policy.md` & `07-api/authentication.md`)
 
-| Screen | `ADMINISTRATOR` | `BOARD` | `PERSON` | `MAINTENANCE_STAFF` | `SECURITY_GUARD` |
-|--------|:---:|:---:|:---:|:---:|:---:|
+| Screen / Route | `ADMINISTRATOR` | `BOARD` | `PERSON` | `MAINTENANCE_STAFF` | `SECURITY_GUARD` |
+|---|:---:|:---:|:---:|:---:|:---:|
 | `/dashboard` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `/units*` | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `/people*` | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `/requests` (list) | ✅ all | ❌ | ✅ own only | ✅ assigned only | ❌ |
-| `/requests/new` | ❌ | ❌ | ✅ | ❌ | ❌ |
-| `/requests/:id` | ✅ | ❌ | ✅ own only | ✅ assigned only (update status) | ❌ |
-| `/fees` | ✅ all | ❌ | ✅ own only | ❌ | ❌ |
-| `/announcements` (read) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `/announcements/new` | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `/front-desk/*` | ❌ | ❌ | ❌ | ❌ | ✅ |
-| `/correspondence` | ❌ | ❌ | ✅ own only | ❌ | ❌ |
+| `/admin/users` (`FR20`) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `/units*` (`FR02`–`FR04`) | ✅ | 👁️ read | ❌ | ❌ | ❌ |
+| `/people*` (`FR21`) | ✅ | 👁️ read | ❌ | ❌ | ❌ |
+| `/requests` (list) | ✅ all | 👁️ read | ✅ own only | ✅ assigned only | ❌ |
+| `/requests/new` (`FR05`) | ✅ | ❌ | ✅ | ❌ | ❌ |
+| `/requests/:id` (`FR06`) | ✅ assign / verify | 👁️ read | ✅ own (verify/reject) | ✅ assigned (progress) | ❌ |
+| `/fees*` (`FR08`–`FR10`) | ✅ all | 👁️ read | ✅ own only | ❌ | ❌ |
+| `/announcements` (read) | ✅ | ✅ | ✅ (scoped) | ✅ | ✅ |
+| `/announcements/new` (`FR11`) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `/front-desk/*` (`FR12`–`FR15`, `FR22`) | 👁️ read | 👁️ visits read | ❌ | ❌ | ✅ full ops |
+| `/correspondence` & `/preauthorizations` | ❌ | ❌ | ✅ own only | ❌ | ❌ |
 | `/expenses` (read) | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `/expenses/new` | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `/expenses/:id` (approve/reject) | ❌ | ✅ | ❌ | ❌ | ❌ |
-| `/reports` | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `/profile` | ✅ | ✅ | ✅ | ✅ | ✅ |
-
-> This matrix mirrors the `[resource]:[action]` permissions already defined in
-> `00-governance/security-policy.md`. "Own only" / "assigned only" columns correspond
-> to the `:own` and `:assigned` suffixes in that policy — enforced by the backend, but
-> the frontend must also filter/hide data client-side to avoid a confusing UI (e.g. a
-> `PERSON` should never see a list implying access to other units' fees).
+| `/expenses/new` (`FR17`) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `/expenses/:id` (vote `FR18`) | 👁️ read | ✅ approve/reject | ❌ | ❌ | ❌ |
+| `/reports` (`FR19`) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `/profile` (incl. in-app notifications) | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
-## Main user flows
+## Main User Flows
 
-### Flow 1 — Login
+### Flow 1 — Login & Role-Scoped Session (`HU-IAM-001`)
 
 ```
 Landing (/)
     │
-    ▼ Redirect (no session)
-Login (/login)
+    ▼ Redirect (no valid session)
+Login (/login) ── POST /api/v1/auth/login via api-gateway (:8080) → iam-service (:8081)
     │
-    ├── Valid credentials ──► Dashboard (/dashboard), scoped to the user's role
+    ├── Valid credentials ──► Dashboard (/dashboard) scoped to canonical role
+    └── Invalid / Locked  ──► Generic 401/423 error message (no credential enumeration)
+```
+
+### Flow 2 — Maintenance Request Lifecycle with Verified Closure (`HU-MAINT-001`–`003`)
+
+```
+Person (/requests/new) → Submit PRIVATE_UNIT or COMMON_AREA ticket → status: PENDING
     │
-    └── Invalid credentials ► Login with generic error message (no hint on which field failed)
+    ▼ (Administrator assigns via /requests/:id)
+Maintenance Staff (/requests) → Assigned ticket → IN_PROGRESS → WORK_COMPLETED
+    │  (async RabbitMQ → communications-service delivers in-app alert FR07)
+    ▼
+Person (/requests/:id) reviews completed repair (`BR-09`):
+    ├── Verify (+ optional 1–5 rating) ──► status: RESOLVED (terminal)
+    └── Reject (+ mandatory notes)     ──► status: IN_PROGRESS (technician alerted)
 ```
 
-**Related HUs:** HU-IAM-001
-
-### Flow 2 — Report and resolve a maintenance issue (cross-role)
+### Flow 3 — Front-Desk Visitor, Vehicle & Pre-Authorization Flow (`HU-ACC-001`–`003`, `006`)
 
 ```
-Person
-  │
-  │  Requests list (/requests) → "New request" (/requests/new)
-  ▼
-Request form — type, description, priority
-  │
-  ▼ Submit
-Request detail (/requests/:id) — status: PENDING
-  │
-  │  (Administrator assigns it — outside this flow's screens, via /requests/:id)
-  ▼
-Maintenance Staff opens Requests list (/requests) — sees it under "assigned to me"
-  │
-  ▼ Opens request, updates status
-Request detail (/requests/:id) — status: IN_PROGRESS → RESOLVED
-  │
-  ▼ (async, via CommunicationsService)
-Person sees an in-app notification of the status change
+Security Guard (/front-desk/visits or /front-desk/preauthorizations)
+    │
+    ├── Pre-authorized guest ──► Convert ACTIVE pre-authorization to Visit (FR22)
+    └── Walk-in guest        ──► /front-desk/visits/new (unit, PERSONAL / COMMERCIAL_CLIENT, optional vehicle)
+                                      │
+                                      ▼ Active visits table (Alt+N quick add)
+                                 Record Exit (/front-desk/visits/:visitId/exit) → Toast confirmation
 ```
 
-**Related HUs:** HU-MAINT-001, HU-MAINT-002, HU-MAINT-003
-
-### Flow 3 — Log a visitor with a vehicle at the front desk
+### Flow 4 — Extraordinary Expense Proposal & Immutable Board Voting (`HU-FIN-001`–`002`)
 
 ```
-Security Guard
-  │
-  │  Front desk — visits (/front-desk/visits) → "Log a visit" (/front-desk/visits/new)
-  ▼
-Visit form — destination unit, visitor type (personal / commercial client)
-  │
-  ├── No vehicle ──────────────► Visit saved, appears in active visits list
-  │
-  └── Vehicle present ─────────► Same form, vehicle section (plate, type) → Visit saved
-                                       │
-                                       ▼ (later)
-                              Front desk — visits (/front-desk/visits)
-                              → select active visit → "Log exit" (/front-desk/visits/:id/exit)
+Administrator (/expenses/new) → Submit proposal + quorum + deadline → status: PENDING_REVIEW
+    │  (async RabbitMQ → communications-service notifies BOARD)
+    ▼
+Board Member (/expenses/:proposalId) → Reviews justification & destructive confirmation Modal
+    │  POST /api/v1/expense-proposals/:id/votes (append-only ledger, 1 vote per member)
+    ▼ (Automatic quorum evaluation — BR-15)
+    ├── Quorum Approve ──► status: APPROVED (locked, Administrator notified)
+    └── Quorum Reject  ──► status: REJECTED (locked, Administrator notified)
 ```
-
-**Related HUs:** HU-ACC-001, HU-ACC-002, HU-ACC-003
-
-### Flow 4 — Extraordinary expense approval (cross-role)
-
-```
-Administrator
-  │
-  │  Expenses list (/expenses) → "New proposal" (/expenses/new)
-  ▼
-Expense form — subject, requested amount, justification
-  │
-  ▼ Submit
-Expense detail (/expenses/:id) — status: UNDER_REVIEW
-  │
-  ▼ (async, via CommunicationsService) — Board of Trustees notified
-Board of Trustees opens Expenses list (/expenses) → opens the proposal
-  │
-  ▼ Reviews and decides
-Expense detail (/expenses/:id) — Approve / Reject buttons
-  │
-  ├── Approve ──► status: APPROVED, Administrator notified
-  └── Reject  ──► status: REJECTED, Administrator notified
-```
-
-**Related HUs:** HU-FIN-001, HU-FIN-002
 
 ---
 
-## Navigation rules
+## Navigation Rules
 
 | Rule | Description |
 |------|-------------|
-| Authentication | Every route except `/login` redirects to `/login` if there is no valid session |
-| Authorization | A route accessed by a role without the matching permission (see Access matrix) redirects to `/dashboard` with a "You do not have permission to view this" message, rather than a blank or broken screen |
-| Ownership filtering | For `PERSON` and `MAINTENANCE_STAFF`, list screens (`/requests`, `/fees`, `/correspondence`) must only ever render "own"/"assigned" records — this is a UI rule in addition to the backend's `:own`/`:assigned` enforcement, to avoid an inconsistent-looking UI |
-| 404 | Undefined routes show a 404 screen with a link back to `/dashboard` |
-| Confirmation | Destructive or irreversible actions (deleting a unit, approving/rejecting an expense proposal) show a confirmation dialog before executing, per `design-system.md` |
-| Session expiration | A 401 response from any backend service redirects to `/login` with the message "Your session expired" |
+| Authentication | Every route except `/login` and `/activate` redirects to `/login` when unauthenticated |
+| Authorization | Accessing an unauthorized route redirects to `/dashboard` with a clear `403` feedback banner |
+| Ownership Filtering (`P5`) | Client UI filters `/requests`, `/fees`, `/correspondence`, and `/preauthorizations` strictly to own/assigned records, complementing mandatory backend enforcement |
+| Destructive Confirmation | Deleting a unit, deactivating a tenant occupancy, or casting an irreversible Board vote always triggers a confirmation `Modal` (`design-system.md`) |
+| Session Expiration | Any `401` response triggers silent `/api/v1/auth/refresh` rotation once; on failure, clears session and redirects to `/login` |
 
 ---
 
 ## Correlations
 
-- Design system (visual components, status badges) → `12-ux-ui/design-system.md`
-- Wireframes → `12-ux-ui/wireframes.md` *(not created yet — pending; see `12-ux-ui/README.md`)*
-- User Stories this map is derived from → `04-requirements/user-stories.md`
-- Roles and permissions → `00-governance/security-policy.md`
-- Backend services each screen calls → `09-microservices/service-catalog.md` *(still the generic scaffold — needs updating to the 9 real services referenced above)*
+- Design System & Domain Status Badges → `12-ux-ui/design-system.md`
+- High-Fidelity Stitch Screens & UI Kit → `12-ux-ui/wireframes.md`
+- 22 BDD User Stories → `04-requirements/user-stories.md`
+- 5 Canonical Roles & Permissions → `00-governance/security-policy.md`, `07-api/authentication.md`
+- Reconciled 10-Service Catalog → `09-microservices/service-catalog.md`

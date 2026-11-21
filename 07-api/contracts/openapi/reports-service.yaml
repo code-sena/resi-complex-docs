@@ -84,7 +84,7 @@ paths:
       description: |
         Retorna el resumen ejecutivo de cartera pendiente (`totalPendingPortfolio`), cantidad de unidades con saldo pendiente y el listado de unidades en mora crítica (más de 2 cuotas vencidas).
 
-        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (`reports:read`).
+        **Roles permitidos:** `ADMINISTRATOR`, `BOARD` (`reports:read`).
       operationId: getFeeStats
       tags: [Reports]
       security:
@@ -108,7 +108,7 @@ paths:
       description: |
         Actualiza el modelo de lectura (`pending_fees_view`) para una unidad específica a partir de eventos o sincronizaciones de facturación.
 
-        **Roles permitidos:** `ADMIN` (`reports:read`).
+        **Roles permitidos:** `ADMINISTRATOR` (`reports:read`).
       operationId: upsertFeeStatsProjection
       tags: [Reports]
       security:
@@ -144,7 +144,7 @@ paths:
       description: |
         Retorna el conteo consolidado de solicitudes de mantenimiento agrupadas por estado (`PENDING`, `IN_PROGRESS`, `RESOLVED`) desde la vista proyectada `requests_by_status_view`.
 
-        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (`reports:read`).
+        **Roles permitidos:** `ADMINISTRATOR`, `BOARD` (`reports:read`).
       operationId: getMaintenanceStats
       tags: [Reports]
       security:
@@ -168,7 +168,7 @@ paths:
       description: |
         Actualiza el conteo de solicitudes para un estado específico (`PENDING`, `IN_PROGRESS`, `RESOLVED`) en `requests_by_status_view`.
 
-        **Roles permitidos:** `ADMIN` (`reports:read`).
+        **Roles permitidos:** `ADMINISTRATOR` (`reports:read`).
       operationId: updateMaintenanceStatsProjection
       tags: [Reports]
       security:

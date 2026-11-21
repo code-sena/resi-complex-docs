@@ -1,280 +1,113 @@
-# Local Project Setup
+# Local Project Setup — resi-complex
 
-> This document ensures that any developer can have a functional local environment
-> in less than 1 hour. If it takes longer, the document is incomplete.
-> **Rule:** If you have to guess something or look elsewhere, add what's missing here.
-
----
-
-## Prerequisites
-
-### Universal tools (all stacks)
-
-| Tool | Minimum version | Install from | Verify with |
-|------|----------------|--------------|-------------|
-| Docker | 24.0+ | docker.com | `docker --version` |
-| Docker Compose | 2.20+ | Included with Docker Desktop | `docker compose version` |
-| Git | 2.40+ | git-scm.com | `git --version` |
-
-### Project language tool
-
-> Add here the specific tool for the chosen stack and remove this instruction.
-> See your stack guide in `_stacks/` for recommended versions.
-
-| Tool | Minimum version | Install from | Verify with |
-|------|----------------|--------------|-------------|
-| [Language / Runtime] | [LTS version] | [Official URL] | `[command --version]` |
-| [Package manager] | [version] | [included / URL] | `[command --version]` |
-| [Additional tool] | [version] | [URL] | [command] |
-
-**Stack tool reference:**
-- Node.js + TypeScript → [`_stacks/node-typescript.md`](../_stacks/node-typescript.md)
-- Java + Spring Boot → [`_stacks/java-spring.md`](../_stacks/java-spring.md)
-- Python + FastAPI → [`_stacks/python-fastapi.md`](../_stacks/python-fastapi.md)
-- Go → [`_stacks/go.md`](../_stacks/go.md)
-
-**Recommended (not required):**
-- Team editor: [VS Code / IntelliJ IDEA / PyCharm / GoLand]
-- Postman or Insomnia for manually testing endpoints
+> This guide enables any developer on the SENA ADSO 3239188 team to run the full `resi-complex`
+> microservices stack locally in under 30 minutes.
+> **Aligned with:** `05-architecture/deployment.md`, `09-microservices/service-catalog.md`, `ADR-004`, `ADR-005`, `ADR-006`.
+> **Last Synchronized:** 2026-11-21
 
 ---
 
-## Local ports in use
+## 1. Prerequisites
 
-Verify these ports are free before starting:
+| Tool | Minimum Version | Verify Command |
+|------|-----------------|----------------|
+| **Docker & Docker Compose** | Docker 24.0+ / Compose 2.20+ | `docker --version && docker compose version` |
+| **Java JDK** | **Java 25** (17+ minimum baseline) | `java -version` |
+| **Apache Maven** | 3.9+ (or repo `./mvnw`) | `mvn -version` |
+| **Git** | 2.40+ | `git --version` |
+| **Node.js (optional — docs linting)** | 20+ (for `npx @redocly/cli lint`) | `node --version` |
 
-| Port | Service | Description |
-|------|---------|-------------|
-| 8080 | api-gateway | Main entry point |
-| 3001 | auth-service | Authentication service |
-| 300X | [service-name] | [description] |
-| 5432 | PostgreSQL | Relational database |
-| 6379 | Redis | Cache and message queue |
-| 5672 | RabbitMQ | Message broker (AMQP) |
-| 15672 | RabbitMQ Management | RabbitMQ web interface |
-| 9092 | Kafka | Message broker (if applicable) |
+**Recommended:** IntelliJ IDEA or VS Code (Extension Pack for Java), Postman/Insomnia, MySQL Workbench or Adminer (`:8091`).
 
-**Check free ports:**
+---
+
+## 2. Canonical Local Port Allocation
+
+Verify these ports are free before starting (`netstat -ano | findstr :8081` on Windows or `lsof -i :8081` on macOS/Linux):
+
+| Port | Component / Service | Database / Purpose |
+|------|---------------------|--------------------|
+| **`8080`** *(local fallback **`8090`**)* | `api-gateway` | Single HTTP entry point (`SERVER_PORT=8090` bare-metal Windows fallback if `:8080` is occupied) |
+| **`8081`** | `iam-service` | MySQL `iam_db` — Auth, 5 RBAC roles, JWT & refresh tokens (`FR01`, `FR20`) |
+| **`8082`** | `communications-service` | MySQL `communications_db` — Segmented announcements & reactive alerts (`FR07`, `FR11`) |
+| **`8083`** | `units-service` | MySQL `units_db` — Residential/commercial units & establishments (`FR02`–`FR04`) |
+| **`8084`** | `billing-service` | MySQL `billing_db` — Differentiated fees & partial payments (`FR08`–`FR10`) |
+| **`8085`** | `people-service` | MySQL `people_db` — Person profiles & unit occupancies (`FR21`) |
+| **`8086`** | `maintenance-service` | MySQL `maintenance_db` — Maintenance request lifecycle (`FR05`–`FR06`) |
+| **`8087`** | `access-control-service` | MySQL `access_control_db` — Visits, vehicles, pre-auths & correspondence (`FR12`–`FR16`, `FR22`) |
+| **`8088`** | `finance-approval-service` | MySQL `finance_approval_db` *(local alias `finance_db`)* — Board voting (`FR17`–`FR18`) |
+| **`8089`** | `reports-service` | MySQL `reports_db` — CQRS executive projections (`FR19`) |
+| **`3306`** | **MySQL 8.0** | Dedicated logical schemas (`*_db`) managed via Flyway (`ADR-004`) |
+| **`5672`** / **`15672`** | **RabbitMQ 3.12+** | AMQP broker (`resicomplex.events`) + Management UI (`ADR-005`) |
+| **`8091`** | Adminer *(dev-only)* | Browser-based MySQL 8 database inspector (moved off `:8090` to avoid Gateway fallback conflict) |
+
+---
+
+## 3. Step-by-Step Setup
+
+### Step 1: Clone Required Repositories
 ```bash
-# Windows
-netstat -ano | findstr ":[PORT]"
+# Documentation Single Source of Truth
+git clone https://github.com/code-sena/resi-complex-docs.git
 
-# macOS / Linux
-lsof -i :[PORT]
+# Example microservice repositories (org: https://github.com/resi-complex)
+git clone https://github.com/resi-complex/resi-complex-api-gateway.git
+git clone https://github.com/resi-complex/resi-complex-iam-service.git
 ```
 
----
-
-## Step-by-step installation
-
-### Step 1: Clone the repository
-
+### Step 2: Configure Environment Variables
 ```bash
-git clone https://github.com/[org]/[repo].git
-cd [repo]
-```
-
-### Step 2: Environment variables
-
-```bash
-# Copy the example environment variables
 cp .env.example .env
-
-# Edit .env if you need to change any value
-# (for local, the .env.example defaults should work)
 ```
 
-**Required variables to configure in .env:**
+**Core variables (never commit `.env`):**
 
-| Variable | Description | Value for local |
-|----------|-------------|----------------|
-| `DATABASE_URL` | PostgreSQL connection | `postgresql://dev:dev@localhost:5432/dev` |
-| `REDIS_URL` | Redis connection | `redis://localhost:6379` |
-| `JWT_SECRET` | Key for signing JWT | `[generate with: openssl rand -base64 32]` |
-| `[VARIABLE]` | [description] | [example value] |
+| Variable | Description | Example Local Value |
+|----------|-------------|---------------------|
+| `SERVER_PORT` | Microservice HTTP port | `8081` (`8080` or `8090` for Gateway) |
+| `DB_URL` | MySQL 8 JDBC URL for the service's own schema | `jdbc:mysql://localhost:3306/iam_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true` |
+| `DB_USERNAME` | MySQL username | `resi_dev` |
+| `DB_PASSWORD` | MySQL password (set locally, Vault in prod) | `<local-dev-password>` |
+| `JWT_SECRET` | Shared HS256 secret (≥ 256 bits) between `iam-service` & `api-gateway` | Generate via `openssl rand -base64 48` |
+| `RABBITMQ_HOST` / `RABBITMQ_PORT` | RabbitMQ AMQP connection | `localhost` / `5672` |
 
-> **NEVER** commit the `.env` file. It is in `.gitignore` for a reason.
-
-### Step 3: Start the infrastructure
-
+### Step 3: Start Shared Infrastructure (MySQL 8 + RabbitMQ)
 ```bash
-# Start databases and brokers in Docker
-docker compose up -d
-
-# Verify they are healthy
+docker compose up -d mysql rabbitmq
 docker compose ps
 ```
+Ensure all 9 logical schemas (`iam_db`, `communications_db`, `units_db`, `billing_db`, `people_db`, `maintenance_db`, `access_control_db`, `finance_approval_db`, `reports_db`) exist with `CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`.
 
-The command should show all containers in `healthy` or `running` state.
-
-### Step 4: Install dependencies
-
-> Commands depend on the project stack. See `_stacks/[your-stack].md → Project commands`.
-
-| Stack | Command |
-|-------|---------|
-| Node.js + npm | `npm install` |
-| Java + Maven | `mvn install -DskipTests` |
-| Python + Poetry | `poetry install` |
-| Go | `go mod download` |
-
-### Step 5: Run migrations
-
-> The migration tool varies by stack. See `_stacks/[your-stack].md`.
-
-| Stack / Tool | Command |
-|--------------|---------|
-| Node.js + knex/Prisma | `npm run db:migrate` |
-| Java + Flyway | `mvn flyway:migrate` (or automatic on startup) |
-| Python + Alembic | `alembic upgrade head` |
-| Go + golang-migrate | `make migrate-up` |
-
+### Step 4: Build, Test & Run a Microservice
 ```bash
-# Optionally: load initial test data (seed)
-# [see command in your stack guide]
+# Run unit & Testcontainers tests (Flyway runs automatically; Hibernate enforces ddl-auto=validate)
+mvn test
+
+# Start the microservice
+mvn spring-boot:run
 ```
 
-### Step 6: Start the services
-
-> Startup commands depend on the stack. See `_stacks/[your-stack].md → Project commands`.
-
-| Stack | Development command |
-|-------|---------------------|
-| Node.js | `npm run dev` |
-| Java | `mvn spring-boot:run` or `java -jar target/app.jar` |
-| Python | `uvicorn main:app --reload` |
-| Go | `go run ./cmd/server/...` or `make dev` |
-
-### Step 7: Verify it works
-
+### Step 5: Verify Health Endpoints
 ```bash
-# Health check of the API Gateway
-curl http://localhost:8080/health
-
-# Expected response:
-# {"status": "ok", "timestamp": "2024-01-15T10:30:00Z"}
-```
-
-Open your browser at `http://localhost:15672` for the RabbitMQ interface (if using RabbitMQ).
-
----
-
-## Daily workflow
-
-```bash
-# At the start of the day
-git pull origin develop
-# Install dependencies if they changed (see stack):
-#   npm install / mvn install / poetry install / go mod download
-# Run migrations if there are new ones (see stack):
-#   npm run db:migrate / alembic upgrade head / make migrate-up
-# Start the service (see stack):
-#   npm run dev / mvn spring-boot:run / uvicorn main:app --reload / make dev
-
-# At the end
-git add [specific files]
-git commit -m "feat(scope): description"
+curl http://127.0.0.1:8080/health   # or :8090 on Windows bare-metal fallback
+curl http://127.0.0.1:8081/health   # iam-service
 ```
 
 ---
 
-## Common issues
+## 4. Local Operational URLs
 
-### "Port already in use"
-
-```bash
-# Find which process is using the port
-lsof -i :5432    # macOS/Linux
-netstat -ano | findstr :5432  # Windows
-
-# Kill the process (replace PID)
-kill -9 [PID]    # macOS/Linux
-taskkill /PID [PID] /F  # Windows
-```
-
-### "Docker containers not starting"
-
-```bash
-# View logs of the failing container
-docker compose logs [service-name]
-
-# Restart from scratch (deletes volumes)
-docker compose down -v
-docker compose up -d
-```
-
-### "Database connection refused"
-
-```bash
-# Verify PostgreSQL is running
-docker compose ps | grep postgres
-
-# View PostgreSQL logs
-docker compose logs postgres
-```
-
-### "Migration failed"
-
-```bash
-# View migration status
-npm run db:migrate:status
-
-# Revert the last migration
-npm run db:migrate:revert
-
-# Run from a specific version
-npm run db:migrate -- --from V005
-```
-
-### "JWT_SECRET not set" or authentication errors
-
-```bash
-# Generate a valid JWT_SECRET
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-# Copy the result into .env
-```
+| Resource | URL |
+|----------|-----|
+| API Gateway | `http://127.0.0.1:8080` *(Windows bare-metal fallback: `http://127.0.0.1:8090`)* |
+| RabbitMQ Management UI | `http://127.0.0.1:15672` |
+| Adminer (MySQL 8 UI) | `http://127.0.0.1:8091` |
+| OpenAPI Contract Linting | `npx @redocly/cli lint` (from `resi-complex-docs` root) |
 
 ---
 
-## Utility commands
+## 5. Common Troubleshooting
 
-```bash
-# Tests
-npm test                    # All tests
-npm run test:unit           # Unit tests only
-npm run test:integration    # Integration tests only
-npm run test:coverage       # With coverage report
-
-# Database
-npm run db:migrate          # Apply pending migrations
-npm run db:seed             # Load test data
-npm run db:reset            # Revert everything and start over (DELETES DATA!)
-
-# Code quality
-npm run lint                # Check ESLint
-npm run lint:fix            # Auto-fix
-npm run format              # Apply Prettier
-
-# Build
-npm run build               # Compile TypeScript
-npm run build:docker        # Build local Docker image
-```
-
----
-
-## Useful local URLs
-
-| Service | URL | Credentials (local only) |
-|---------|-----|--------------------------|
-| API Gateway | http://localhost:8080 | |
-| RabbitMQ UI | http://localhost:15672 | guest / guest |
-| [Tool] | http://localhost:[port] | [user / pass] |
-| Swagger UI | http://localhost:3001/api-docs | |
-
----
-
-## Correlations
-
-- Environment variables per environment → `10-devops/environments.md`
-- CI/CD pipeline → `10-devops/README.md`
-- Production troubleshooting → `09-microservices/services/XX/runbook.md`
+- **Port `8080` already in use on Windows:** Run `resi-complex-api-gateway` with `SERVER_PORT=8090` (default in its `application.properties`).
+- **Hibernate `Schema-validation` failure on boot:** Confirm the dedicated MySQL schema exists and Flyway (`spring.flyway.enabled=true`) executed cleanly without manual table edits.
+- **401 Unauthorized across services:** Confirm `JWT_SECRET` is identical in `iam-service` (`:8081`) and `api-gateway`.

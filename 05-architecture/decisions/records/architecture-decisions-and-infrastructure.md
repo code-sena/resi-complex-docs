@@ -354,13 +354,13 @@ graph TB
         BROKER[("Message Broker<br/>(RabbitMQ AMQP :5672)<br/><i>Topic Exchange: resicomplex.events</i>")]
     end
 
-    subgraph Microservices ["Microservices Layer (Java 17 / Spring Boot 3.x)"]
+    subgraph Microservices ["Microservices Layer (Java 25 / Spring Boot 4.0.8)"]
         IAM["iam-service (:8081)"]
-        UNITS["units-service (:8082)"]
-        PEOPLE["people-service (:8083)"]
-        MAINT["maintenance-service (:8084)"]
-        BILLING["billing-service (:8085) - CORE"]
-        COMM["communications-service (:8086)"]
+        COMM["communications-service (:8082)"]
+        UNITS["units-service (:8083) - CORE"]
+        BILLING["billing-service (:8084) - CORE"]
+        PEOPLE["people-service (:8085)"]
+        MAINT["maintenance-service (:8086)"]
         ACCESS["access-control-service (:8087)"]
         FINANCE["finance-approval-service (:8088)"]
         REPORTS["reports-service (:8089) - READ MODEL"]
@@ -368,13 +368,13 @@ graph TB
 
     subgraph PersistenceLayer ["Database per Service (MySQL 8.0+)"]
         DB_IAM[("iam_db")]
+        DB_COMM[("communications_db")]
         DB_UNITS[("units_db")]
+        DB_BILLING[("billing_db")]
         DB_PEOPLE[("people_db")]
         DB_MAINT[("maintenance_db")]
-        DB_BILLING[("billing_db")]
-        DB_COMM[("communications_db")]
         DB_ACCESS[("access_control_db")]
-        DB_FINANCE[("finance_db")]
+        DB_FINANCE[("finance_approval_db")]
         DB_REPORTS[("reports_db")]
     end
 
@@ -382,23 +382,23 @@ graph TB
     WEB -->|HTTP REST| GW
 
     %% Gateway to Services
-    GW -->|/auth/*| IAM
-    GW -->|/units/*| UNITS
-    GW -->|/people/*| PEOPLE
-    GW -->|/maintenance-requests/*| MAINT
-    GW -->|/fees/*| BILLING
-    GW -->|/announcements/*| COMM
-    GW -->|/visits/*, /correspondence/*| ACCESS
-    GW -->|/expense-proposals/*| FINANCE
-    GW -->|/reports/*| REPORTS
+    GW -->|/api/v1/auth/*| IAM
+    GW -->|/api/v1/announcements/*| COMM
+    GW -->|/api/v1/units/*| UNITS
+    GW -->|/api/v1/fees/*| BILLING
+    GW -->|/api/v1/people/*| PEOPLE
+    GW -->|/api/v1/maintenance-requests/*| MAINT
+    GW -->|/api/v1/visits/*, /api/v1/correspondence/*| ACCESS
+    GW -->|/api/v1/expense-proposals/*| FINANCE
+    GW -->|/api/v1/reports/*| REPORTS
 
     %% Service to DB
     IAM --- DB_IAM
+    COMM --- DB_COMM
     UNITS --- DB_UNITS
+    BILLING --- DB_BILLING
     PEOPLE --- DB_PEOPLE
     MAINT --- DB_MAINT
-    BILLING --- DB_BILLING
-    COMM --- DB_COMM
     ACCESS --- DB_ACCESS
     FINANCE --- DB_FINANCE
     REPORTS --- DB_REPORTS
