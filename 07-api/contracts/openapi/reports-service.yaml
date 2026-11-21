@@ -1,0 +1,327 @@
+openapi: 3.0.3
+info:
+  title: Reports Service API
+  version: 1.0.0
+  description: |
+    Servicio de analítica y reportes gerenciales (`resi-complex-reports-service`):
+    proyecciones CQRS orientadas a lectura (`pending_fees_view` y `requests_by_status_view`)
+    para estadísticas de cartera en mora (>2 meses) y solicitudes de mantenimiento por estado (`FR19`).
+
+    ## Autenticación
+    Todos los endpoints de negocio requieren un JWT válido en el header:
+    ```
+    Authorization: Bearer <token>
+    ```
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://127.0.0.1:8089
+    description: Local development
+  - url: https://api.dev.{domain}/api/v1
+    description: Development
+    variables:
+      domain:
+        default: resicomplex.local
+  - url: https://api.{domain}/api/v1
+    description: Production
+    variables:
+      domain:
+        default: resicomplex.com
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Reports
+    description: Reportes consolidados de facturación y mantenimiento
+  - name: Health
+    description: Estado de salud del servicio
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Verifica el estado del servicio de reportes y su conexión con MySQL (`reports_db`).
+      operationId: checkReportsHealth
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  service:
+                    type: string
+                    example: reports-service
+                  db:
+                    type: string
+                    enum: [connected, disconnected]
+              example:
+                status: ok
+                service: reports-service
+                db: connected
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '503':
+          description: Servicio no disponible o base de datos desconectada
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/reports/fee-stats:
+    get:
+      summary: Obtener estadísticas consolidadas de cartera y mora
+      description: |
+        Retorna el resumen ejecutivo de cartera pendiente (`totalPendingPortfolio`), cantidad de unidades con saldo pendiente y el listado de unidades en mora crítica (más de 2 cuotas vencidas).
+
+        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (`reports:read`).
+      operationId: getFeeStats
+      tags: [Reports]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Estadísticas de facturación y cartera obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeStatsResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '500':
+          $ref: './_shared.yaml#/components/responses/InternalError'
+
+    post:
+      summary: Actualizar proyección de cartera de una unidad
+      description: |
+        Actualiza el modelo de lectura (`pending_fees_view`) para una unidad específica a partir de eventos o sincronizaciones de facturación.
+
+        **Roles permitidos:** `ADMIN` (`reports:read`).
+      operationId: upsertFeeStatsProjection
+      tags: [Reports]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertUnitDebtRequest'
+            example:
+              unitId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+              totalPending: 750000.00
+              overdueMonths: 3
+              oldestOverdueAt: "2026-08-30"
+      responses:
+        '200':
+          description: Proyección actualizada y estadísticas recalculadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeStatsResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+
+  /api/v1/reports/maintenance-stats:
+    get:
+      summary: Obtener estadísticas de solicitudes de mantenimiento por estado
+      description: |
+        Retorna el conteo consolidado de solicitudes de mantenimiento agrupadas por estado (`PENDING`, `IN_PROGRESS`, `RESOLVED`) desde la vista proyectada `requests_by_status_view`.
+
+        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (`reports:read`).
+      operationId: getMaintenanceStats
+      tags: [Reports]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Estadísticas de mantenimiento obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceStatsResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '500':
+          $ref: './_shared.yaml#/components/responses/InternalError'
+
+    post:
+      summary: Actualizar conteo proyectado de mantenimiento por estado
+      description: |
+        Actualiza el conteo de solicitudes para un estado específico (`PENDING`, `IN_PROGRESS`, `RESOLVED`) en `requests_by_status_view`.
+
+        **Roles permitidos:** `ADMIN` (`reports:read`).
+      operationId: updateMaintenanceStatsProjection
+      tags: [Reports]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMaintenanceStatusCountRequest'
+            example:
+              status: "IN_PROGRESS"
+              requestCount: 7
+      responses:
+        '200':
+          description: Proyección de mantenimiento actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceStatsResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+
+components:
+  schemas:
+    UnitDebtSummary:
+      type: object
+      required:
+        - unitId
+        - totalPending
+        - overdueMonths
+      properties:
+        unitId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        totalPending:
+          type: number
+          format: double
+          description: Saldo total pendiente de la unidad en COP
+          example: 750000.00
+        overdueMonths:
+          type: integer
+          minimum: 0
+          description: Cantidad de meses vencidos en mora
+          example: 3
+        oldestOverdueAt:
+          type: string
+          format: date
+          nullable: true
+          description: Fecha de vencimiento de la cuota impaga más antigua
+          example: "2026-08-30"
+
+    FeeStatsResponse:
+      type: object
+      required:
+        - unitsWithPendingFees
+        - unitsWithCriticalOverdue
+        - totalPendingPortfolio
+        - criticalOverdueUnits
+      properties:
+        unitsWithPendingFees:
+          type: integer
+          description: Total de unidades con saldo pendiente mayor a cero
+          example: 14
+        unitsWithCriticalOverdue:
+          type: integer
+          description: Total de unidades con más de 2 meses de mora
+          example: 3
+        totalPendingPortfolio:
+          type: number
+          format: double
+          description: Monto total de cartera pendiente en COP
+          example: 4850000.00
+        criticalOverdueUnits:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitDebtSummary'
+
+    UpsertUnitDebtRequest:
+      type: object
+      required:
+        - unitId
+        - totalPending
+        - overdueMonths
+      properties:
+        unitId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        totalPending:
+          type: number
+          format: double
+          minimum: 0
+          example: 750000.00
+        overdueMonths:
+          type: integer
+          minimum: 0
+          example: 3
+        oldestOverdueAt:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-08-30"
+
+    MaintenanceStatsResponse:
+      type: object
+      required:
+        - totalRequests
+        - pendingCount
+        - inProgressCount
+        - resolvedCount
+        - byStatus
+      properties:
+        totalRequests:
+          type: integer
+          example: 22
+        pendingCount:
+          type: integer
+          example: 4
+        inProgressCount:
+          type: integer
+          example: 7
+        resolvedCount:
+          type: integer
+          example: 11
+        byStatus:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            PENDING: 4
+            IN_PROGRESS: 7
+            RESOLVED: 11
+
+    UpdateMaintenanceStatusCountRequest:
+      type: object
+      required:
+        - status
+        - requestCount
+      properties:
+        status:
+          type: string
+          enum:
+            - PENDING
+            - IN_PROGRESS
+            - RESOLVED
+          example: IN_PROGRESS
+        requestCount:
+          type: integer
+          minimum: 0
+          example: 7
+
+  securitySchemes:
+    bearerAuth:
+      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'

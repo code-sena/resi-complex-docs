@@ -36,9 +36,10 @@
 | # | Service | Main responsibility | Port | DB | DB type | Status |
 |---|---------|-------------------|------|-----|---------|--------|
 | 01 | `api-gateway` | Routing, authentication, rate limiting | 8080 | Redis | Cache | 🟢 Active |
-| 02 | `auth-service` | Registration, login, JWT tokens, RBAC | 3001 | PostgreSQL | Relational | 🟢 Active |
-| 03 | `[service-name]` | [responsibility] | 3002 | [DB] | [type] | 🟡 In development |
-| 04 | `[service-name]` | [responsibility] | 3003 | [DB] | [type] | 🔴 Planned |
+| 02 | `auth-service` | Registration, login, JWT tokens, RBAC | 8081 | MySQL | Relational | 🟢 Active |
+| 06 | `billing-service` | Monthly administration fees with differentiated residential and commercial tariffs | 8084 | MySQL (`billing_db`) | Relational | 🟢 Active |
+| 07 | `finance-approval-service` | Extraordinary expense proposals and immutable Board member voting | 8088 | MySQL (`finance_db`) | Relational | 🟢 Active |
+| 10 | `reports-service` | Executive CQRS read projections for fee arrears and maintenance statistics | 8089 | MySQL (`reports_db`) | Relational | 🟢 Active |
 
 **Statuses:** 🟢 Active in prod | 🟡 In development | 🔴 Planned | ⏸ Deprecated
 
@@ -110,6 +111,87 @@
 
 **Events consumed:**
 - `[EventName]` from `[source service]`
+
+---
+
+### 06 — `billing-service`
+
+| Field | Value |
+|-------|-------|
+| **Folder** | `09-microservices/services/06-billing-service/` |
+| **Responsibility** | Generate monthly administration fees with differentiated residential and commercial tariffs, calculate arrears, and record payments |
+| **Type** | Core Domain service |
+| **Port** | 8084 |
+| **Technology** | Java 25, Spring Boot 4.0.8, Spring Data JPA, Hibernate, Flyway |
+| **DB** | MySQL 8.0 (`billing_db`) |
+| **Bounded Context** | `02-domain/domain-map.md` → Billing Context |
+| **Externally exposed** | Yes (via API Gateway :8080) |
+
+**Key endpoints:**
+- `POST /api/v1/fees` — Generate monthly administration fee
+- `GET /api/v1/fees` — List all administration fees (filter by `?status=PENDING|PAID|OVERDUE`)
+- `GET /api/v1/fees/{id}` — Get single fee detail and late fee calculation
+- `GET /api/v1/fees/unit/{unitId}` — List full account statement for a unit
+- `PATCH /api/v1/fees/{id}/pay` — Record payment confirmation for a fee
+
+**Events published:**
+- `FeeGenerated` → Topic: `billing.fee.generated`
+- `FeePaid` → Topic: `billing.fee.paid`
+
+**Events consumed:**
+- `UnitRegistered` from `units-service`
+
+---
+
+### 07 — `finance-approval-service`
+
+| Field | Value |
+|-------|-------|
+| **Folder** | `09-microservices/services/07-finance-service/` |
+| **Responsibility** | Manage extraordinary expense proposals and append-only Board member voting with automated quorum resolution |
+| **Type** | Supporting service |
+| **Port** | 8088 |
+| **Technology** | Java 25, Spring Boot 4.0.8, Spring Data JPA, Hibernate, Flyway |
+| **DB** | MySQL 8.0 (`finance_db`) |
+| **Bounded Context** | `02-domain/domain-map.md` → Financial Approval Context |
+| **Externally exposed** | Yes (via API Gateway :8080) |
+
+**Key endpoints:**
+- `POST /api/v1/expense-proposals` — Create extraordinary expense proposal
+- `GET /api/v1/expense-proposals` — List expense proposals (filter by `?status=PENDING_REVIEW|APPROVED|REJECTED`)
+- `GET /api/v1/expense-proposals/{id}` — Get proposal detail and vote breakdown
+- `POST /api/v1/expense-proposals/{id}/votes` — Cast immutable Board member vote (`APPROVED` / `REJECTED`)
+- `GET /api/v1/expense-proposals/{id}/votes` — List votes for a proposal
+
+**Events published:**
+- `ExpenseProposalCreated` → Topic: `finance.expense.created`
+- `ExpenseProposalApproved` → Topic: `finance.expense.approved`
+- `ExpenseProposalRejected` → Topic: `finance.expense.rejected`
+
+---
+
+### 10 — `reports-service`
+
+| Field | Value |
+|-------|-------|
+| **Folder** | `09-microservices/services/10-reports-service/` |
+| **Responsibility** | Maintain CQRS read projections (`pending_fees_view`, `requests_by_status_view`) and serve consolidated portfolio and maintenance statistics |
+| **Type** | Supporting / Analytics service |
+| **Port** | 8089 |
+| **Technology** | Java 25, Spring Boot 4.0.8, Spring Data JPA, Hibernate, Flyway |
+| **DB** | MySQL 8.0 (`reports_db`) |
+| **Bounded Context** | `02-domain/domain-map.md` → Reports Context |
+| **Externally exposed** | Yes (via API Gateway :8080) |
+
+**Key endpoints:**
+- `GET /api/v1/reports/fee-stats` — Get portfolio arrears and critical overdue units (>2 months)
+- `POST /api/v1/reports/fee-stats` — Upsert unit debt read projection
+- `GET /api/v1/reports/maintenance-stats` — Get maintenance request counts grouped by status
+- `POST /api/v1/reports/maintenance-stats` — Update maintenance status count projection
+
+**Events consumed:**
+- `FeeGenerated`, `FeePaid` from `billing-service`
+- `MaintenanceRequestCreated`, `MaintenanceRequestStatusUpdated` from `maintenance-service`
 
 ---
 
