@@ -8,7 +8,7 @@ and service implementation (09-microservices).
 | # | Bounded Context | Microservice | Folder | Status | Owner |
 |---|---|---|---|---|---|
 | 1 | IAM | auth-service | `09-microservices/services/02-auth-service/` | ✅ Exists | - |
-| 2 | Units Management | units-service | `09-microservices/services/03-units-service/` | 🔴 To create | TBD |
+| 2 | Units Management | units-service | `09-microservices/services/03-units-service/` | ✅ Exists | María Alexandra Garzón |
 | 3 | People Management | people-service | `09-microservices/services/04-people-service/` | 🔴 To create | TBD |
 | 4 | Maintenance | maintenance-service | `09-microservices/services/05-maintenance-service/` | 🔴 To create | TBD |
 | 5 | Billing | billing-service | `09-microservices/services/06-billing-service/` | ✅ Exists | Félix Murcia |

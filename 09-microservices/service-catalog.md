@@ -37,8 +37,7 @@
 |---|---------|-------------------|------|-----|---------|--------|
 | 01 | `api-gateway` | Routing, authentication, rate limiting | 8080 | Redis | Cache | 🟢 Active |
 | 02 | `auth-service` | Registration, login, JWT tokens, RBAC | 8081 | MySQL | Relational | 🟢 Active |
-| 06 | `billing-service` | Monthly administration fees with differentiated residential and commercial tariffs | 8084 | MySQL (`billing_db`) | Relational | 🟢 Active |
-| 07 | `finance-approval-service` | Extraordinary expense proposals and immutable Board member voting | 8088 | MySQL (`finance_db`) | Relational | 🟢 Active |
+| 03 | `units-service` | Physical units (residential/commercial) & 1:1 business profiles | 8083 | MySQL (`units_db`) | Relational | 🟢 Active |
 | 08 | `communications-service` | Segmented announcements (all, residential, commercial) | 8082 | MySQL (`communications_db`) | Relational | 🟢 Active |
 | 09 | `access-control-service` | Visitor, vehicle entry/exit, front desk correspondence | 8087 | MySQL (`access_control_db`) | Relational | 🟢 Active |
 | 10 | `reports-service` | Executive CQRS read projections for fee arrears and maintenance statistics | 8089 | MySQL (`reports_db`) | Relational | 🟢 Active |
@@ -92,27 +91,37 @@
 
 ---
 
-### 03 — `[service-name]`
+### 03 — `units-service`
 
 | Field | Value |
 |-------|-------|
-| **Folder** | `09-microservices/services/03-[name]/` |
-| **Responsibility** | [Describe in one sentence] |
-| **Type** | [Core / Supporting / Generic] |
-| **Port** | 300X |
-| **Technology** | [Stack] |
-| **DB** | [Engine and name] |
-| **Bounded Context** | [Reference in domain-map] |
-| **Externally exposed** | [Yes / Internal only] |
+| **Folder** | `09-microservices/services/03-units-service/` |
+| **Responsibility** | Manage physical condominium spaces (residential/commercial) and 1:1 commercial profiles |
+| **Type** | Core Domain |
+| **Port** | 8083 |
+| **Technology** | Java 17+, Spring Boot 3.x, Spring Data JPA, Hibernate, Flyway |
+| **DB** | MySQL 8.0 (`units_db`) |
+| **Bounded Context** | `02-domain/domain-map.md` → Units Management Context |
+| **Externally exposed** | Yes (via API Gateway :8080) |
 
 **Key endpoints:**
-- `[METHOD] /[path]` — [description]
+- `GET /health` — Service health and database connectivity
+- `GET /api/v1/units` — List units with pagination and filtering (`unitType`, `search`)
+- `POST /api/v1/units` — Register physical unit (residential or commercial) (`FR02`)
+- `GET /api/v1/units/{id}` — Get single unit detail with establishment if commercial
+- `PUT /api/v1/units/{id}` — Update unit metadata (`FR03`)
+- `DELETE /api/v1/units/{id}` — Soft delete unit, blocked if debt exists (`FR03`, `BR-05`)
+- `GET /api/v1/units/{id}/commercial` — Get commercial establishment profile (`FR04`)
+- `POST /api/v1/units/{id}/commercial` — Register 1:1 business profile for commercial unit (`FR04`, `BR-04`)
+- `PUT /api/v1/units/{id}/commercial` — Update commercial establishment profile (`FR04`)
 
 **Events published:**
-- `[EventName]` → Topic: `[topic.name]`
+- `UnitRegistered` → Topic: `units.unit.registered`
+- `UnitUpdated` → Topic: `units.unit.updated`
+- `CommercialEstablishmentRegistered` → Topic: `units.establishment.registered`
 
 **Events consumed:**
-- `[EventName]` from `[source service]`
+- *(None directly — synchronous HTTP check against `billing-service` on unit deletion)*
 
 ---
 
