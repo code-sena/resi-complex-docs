@@ -1,0 +1,406 @@
+openapi: 3.0.3
+info:
+  title: Finance Approval Service API
+  version: 1.0.0
+  description: |
+    Servicio de aprobación financiera y votación del Consejo de Administración (`resi-complex-finance-approval-service`):
+    registro de propuestas de gasto extraordinario, emisión de votos inmutables por miembros del Consejo (`BOARD_MEMBER`),
+    cálculo de quórum y resolución automática de propuestas (`FR17`, `FR18`).
+
+    ## Autenticación
+    Todos los endpoints de negocio requieren un JWT válido en el header:
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    ## Reglas de Dominio Clave
+    - **Inmutabilidad del voto (`BR-15`):** Los votos del Consejo (`expense_votes`) son append-only. Un miembro del Consejo solo puede emitir un voto por propuesta.
+    - **Resolución automática por quórum (`BR-15`):** Al alcanzar la mayoría requerida de votos a favor (`APPROVED`) o en contra (`REJECTED`), la propuesta cambia automáticamente su estado y registra `approvalDate`, bloqueando votaciones posteriores.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://127.0.0.1:8088
+    description: Local development
+  - url: https://api.dev.{domain}/api/v1
+    description: Development
+    variables:
+      domain:
+        default: resicomplex.local
+  - url: https://api.{domain}/api/v1
+    description: Production
+    variables:
+      domain:
+        default: resicomplex.com
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: ExpenseProposals
+    description: Gestión de propuestas de gasto extraordinario
+  - name: ExpenseVotes
+    description: Emisión y auditoría de votos inmutables del Consejo de Administración
+  - name: Health
+    description: Estado de salud del servicio
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Verifica el estado del servicio de aprobación financiera y su conexión con MySQL (`finance_db`).
+      operationId: checkFinanceHealth
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  service:
+                    type: string
+                    example: finance-approval-service
+                  db:
+                    type: string
+                    enum: [connected, disconnected]
+              example:
+                status: ok
+                service: finance-approval-service
+                db: connected
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '503':
+          description: Servicio no disponible o base de datos desconectada
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/expense-proposals:
+    get:
+      summary: Listar propuestas de gasto extraordinario
+      description: |
+        Retorna la lista de propuestas de gasto extraordinario junto con su conteo de votos a favor, en contra y el detalle de votos emitidos. Permite filtrar por estado (`PENDING_REVIEW`, `APPROVED`, `REJECTED`).
+
+        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (`expenses:read`).
+      operationId: listExpenseProposals
+      tags: [ExpenseProposals]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filtrar propuestas por estado de revisión
+          schema:
+            $ref: '#/components/schemas/ProposalStatus'
+        - $ref: './_shared.yaml#/components/parameters/PageParam'
+        - $ref: './_shared.yaml#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Lista de propuestas de gasto obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseProposalResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '500':
+          $ref: './_shared.yaml#/components/responses/InternalError'
+
+    post:
+      summary: Crear propuesta de gasto extraordinario
+      description: |
+        Registra una nueva propuesta de gasto extraordinario en estado `PENDING_REVIEW` para ser sometida a votación por los miembros del Consejo de Administración.
+
+        **Roles permitidos:** `ADMIN` (`expenses:create`).
+      operationId: createExpenseProposal
+      tags: [ExpenseProposals]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseProposalRequest'
+            example:
+              title: "Mantenimiento preventivo y cambio de guayas de ascensores Torre A y B"
+              description: "Reemplazo de cables de tracción, calibración de frenos de seguridad y certificación anual."
+              estimatedAmount: 4800000.00
+              proposedBy: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '201':
+          description: Propuesta de gasto creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseProposalResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '500':
+          $ref: './_shared.yaml#/components/responses/InternalError'
+
+  /api/v1/expense-proposals/{id}:
+    get:
+      summary: Obtener detalle de propuesta de gasto por ID
+      description: |
+        Retorna la información completa de una propuesta de gasto extraordinario, incluyendo su estado actual, fecha de resolución y el listado de votos emitidos por el Consejo.
+
+        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (`expenses:read`).
+      operationId: getExpenseProposalById
+      tags: [ExpenseProposals]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Propuesta de gasto encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseProposalResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+  /api/v1/expense-proposals/{id}/votes:
+    get:
+      summary: Listar votos emitidos sobre una propuesta
+      description: |
+        Obtiene el historial inmutable de votos emitidos por los miembros del Consejo de Administración para una propuesta específica.
+
+        **Roles permitidos:** `ADMIN`, `BOARD_MEMBER` (`expenses:read`).
+      operationId: getVotesByProposal
+      tags: [ExpenseVotes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Lista de votos de la propuesta obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseVoteResponse'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+
+    post:
+      summary: Emitir voto del Consejo sobre una propuesta
+      description: |
+        Registra el voto inmutable (`APPROVED` o `REJECTED`) de un miembro del Consejo de Administración sobre una propuesta en estado `PENDING_REVIEW`. Si con este voto se alcanza el quórum de mayoría, la propuesta pasa automáticamente a `APPROVED` o `REJECTED`.
+
+        **Roles permitidos:** `BOARD_MEMBER` (`expenses:approve`, `expenses:reject`).
+      operationId: castExpenseVote
+      tags: [ExpenseVotes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: './_shared.yaml#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CastVoteRequest'
+            example:
+              boardMemberId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+              vote: "APPROVED"
+              comments: "Aprobado tras verificar las tres cotizaciones adjuntas."
+      responses:
+        '201':
+          description: Voto registrado exitosamente y estado de propuesta actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseProposalResponse'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+        '409':
+          description: El miembro del Consejo ya votó en esta propuesta o la propuesta ya fue cerrada (`APPROVED` / `REJECTED`)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+              example:
+                error: VOTE_CONFLICT
+                message: Board member has already voted on this proposal
+
+components:
+  schemas:
+    ProposalStatus:
+      type: string
+      description: Estado del ciclo de vida de la propuesta de gasto extraordinario
+      enum:
+        - PENDING_REVIEW
+        - APPROVED
+        - REJECTED
+      example: PENDING_REVIEW
+
+    VoteDecision:
+      type: string
+      description: Decisión emitida por el miembro del Consejo
+      enum:
+        - APPROVED
+        - REJECTED
+      example: APPROVED
+
+    CreateExpenseProposalRequest:
+      type: object
+      required:
+        - title
+        - description
+        - estimatedAmount
+        - proposedBy
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 150
+          description: Título ejecutivo de la propuesta de gasto
+          example: "Impermeabilización de cubiertas Torre A y B"
+        description:
+          type: string
+          minLength: 1
+          description: Justificación técnica, alcance de la obra y resumen de cotizaciones
+          example: "Impermeabilización con manto asfáltico de 450 m2 en terrazas comunales."
+        estimatedAmount:
+          type: number
+          format: double
+          minimum: 0.01
+          description: Monto estimado del gasto extraordinario en COP
+          example: 3500000.00
+        proposedBy:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+
+    CastVoteRequest:
+      type: object
+      required:
+        - boardMemberId
+        - vote
+      properties:
+        boardMemberId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        vote:
+          $ref: '#/components/schemas/VoteDecision'
+        comments:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Observación o justificación del voto emitido
+          example: "De acuerdo con la cotización del proveedor certificado."
+
+    ExpenseVoteResponse:
+      type: object
+      required:
+        - id
+        - proposalId
+        - boardMemberId
+        - vote
+        - votedAt
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        proposalId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        boardMemberId:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        vote:
+          $ref: '#/components/schemas/VoteDecision'
+        comments:
+          type: string
+          nullable: true
+          example: "De acuerdo con la cotización."
+        votedAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+
+    ExpenseProposalResponse:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - estimatedAmount
+        - proposedBy
+        - status
+        - createdAt
+        - approvedVotes
+        - rejectedVotes
+        - votes
+      properties:
+        id:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        title:
+          type: string
+          example: "Impermeabilización de cubiertas Torre A y B"
+        description:
+          type: string
+          example: "Impermeabilización con manto asfáltico de 450 m2 en terrazas comunales."
+        estimatedAmount:
+          type: number
+          format: double
+          example: 3500000.00
+        proposedBy:
+          $ref: './_shared.yaml#/components/schemas/UUID'
+        status:
+          $ref: '#/components/schemas/ProposalStatus'
+        approvalDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Fecha y hora en que se alcanzó el quórum de aprobación o rechazo
+          example: '2026-11-20T16:40:00Z'
+        createdAt:
+          $ref: './_shared.yaml#/components/schemas/Timestamp'
+        approvedVotes:
+          type: integer
+          format: int64
+          description: Cantidad acumulada de votos a favor
+          example: 2
+        rejectedVotes:
+          type: integer
+          format: int64
+          description: Cantidad acumulada de votos en contra
+          example: 0
+        votes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpenseVoteResponse'
+
+  securitySchemes:
+    bearerAuth:
+      $ref: './_shared.yaml#/components/securitySchemes/bearerAuth'
