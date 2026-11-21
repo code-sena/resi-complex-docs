@@ -37,6 +37,7 @@
 |---|---------|-------------------|------|-----|---------|--------|
 | 01 | `api-gateway` | Routing, authentication, rate limiting | 8080 | Redis | Cache | 🟢 Active |
 | 02 | `auth-service` | Registration, login, JWT tokens, RBAC | 8081 | MySQL | Relational | 🟢 Active |
+| 04 | `people-service` | Census of residents/merchants & unit tenancy lifecycles | 8084 | MySQL (`people_db`) | Relational | 🟢 Active |
 | 08 | `communications-service` | Segmented announcements (all, residential, commercial) | 8082 | MySQL (`communications_db`) | Relational | 🟢 Active |
 | 09 | `access-control-service` | Visitor, vehicle entry/exit, front desk correspondence | 8087 | MySQL (`access_control_db`) | Relational | 🟢 Active |
 
@@ -110,6 +111,40 @@
 
 **Events consumed:**
 - `[EventName]` from `[source service]`
+
+### 04 — `people-service`
+
+| Field | Value |
+|-------|-------|
+| **Folder** | `09-microservices/services/04-people-service/` |
+| **Responsibility** | Manage personal profiles of residents/merchants and the tenancy/lease lifecycle of units |
+| **Type** | Supporting service |
+| **Port** | 8084 |
+| **Technology** | Java 17+, Spring Boot 3.x, Spring Data JPA, Hibernate, Flyway |
+| **DB** | MySQL 8.0 (`people_db`) |
+| **Bounded Context** | `02-domain/domain-map.md` → People Management Context |
+| **Externally exposed** | Yes (via API Gateway :8080) |
+
+**Key endpoints:**
+- `GET /health` — Service health and database connectivity
+- `GET /api/v1/people` — List persons with filters (`personType`, `unitId`, `search`)
+- `POST /api/v1/people` — Register person with initial active unit occupancy (`HU-PPL-001`, `FR21`)
+- `GET /api/v1/people/{id}` — Get complete person profile and occupancy history
+- `PUT /api/v1/people/{id}` — Update contact details (phone, email)
+- `DELETE /api/v1/people/{id}` — Soft delete person profile
+- `GET /api/v1/occupancies` — List occupancies (`unitId`, `personId`, `status`)
+- `POST /api/v1/occupancies` — Assign person to unit with tenancy role and dates (`HU-PPL-001`)
+- `GET /api/v1/occupancies/{id}` — Get specific occupancy detail
+- `PATCH /api/v1/occupancies/{id}/deactivate` — Terminate lease and revoke unit privileges (`HU-PPL-002`)
+- `GET /api/v1/units/{unitId}/occupants` — Get current active occupants for a unit
+
+**Events published:**
+- `PersonRegistered` → Topic: `people.person.registered`
+- `OccupancyAssigned` → Topic: `people.occupancy.assigned`
+- `OccupancyDeactivated` → Topic: `people.occupancy.deactivated`
+
+**Events consumed:**
+- *(None directly — validates `unitId` synchronously via HTTP against `units-service`)*
 
 ---
 

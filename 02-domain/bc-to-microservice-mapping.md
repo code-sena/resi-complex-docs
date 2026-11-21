@@ -9,7 +9,7 @@ and service implementation (09-microservices).
 |---|---|---|---|---|---|
 | 1 | IAM | auth-service | `09-microservices/services/02-auth-service/` | ✅ Exists | - |
 | 2 | Units Management | units-service | `09-microservices/services/03-units-service/` | 🔴 To create | TBD |
-| 3 | People Management | people-service | `09-microservices/services/04-people-service/` | 🔴 To create | TBD |
+| 3 | People Management | people-service | `09-microservices/services/04-people-service/` | ✅ Exists | María Alexandra Garzón |
 | 4 | Maintenance | maintenance-service | `09-microservices/services/05-maintenance-service/` | 🔴 To create | TBD |
 | 5 | Billing | billing-service | `09-microservices/services/06-billing-service/` | 🔴 To create | TBD |
 | 6 | Financial Approval | finance-service | `09-microservices/services/07-finance-service/` | 🔴 To create | TBD |
