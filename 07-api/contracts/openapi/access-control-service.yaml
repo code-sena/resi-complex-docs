@@ -1,0 +1,531 @@
+openapi: 3.0.3
+info:
+  title: Access Control Service API
+  version: 1.0.0
+  description: |
+    Servicio de control de acceso, portería, vehículos y correspondencia (`resi-complex-access-control-service`):
+    registro de ingresos y salidas de visitantes diferenciando visitantes personales de clientes de locales comerciales (`FR13`),
+    control de ingreso/salida vehicular (`FR14`), y recepción/entrega de correspondencia y paquetería en portería (`FR15`).
+
+    ## Autenticación
+    Todos los endpoints de negocio requieren un JWT válido en el header:
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    ## Reglas de Dominio Clave
+    - **Diferenciación de visitas (`FR13`):** Toda visita debe clasificarse como `PERSONAL_VISITOR` o `COMMERCIAL_CLIENT` y asociarse a una unidad destino (`destinationUnitId`).
+    - **Control vehicular (`FR14`):** El registro de visita soporta vehículo opcional (`CAR`, `MOTORCYCLE`, `NONE`) y placa (`vehiclePlate`).
+    - **Integridad de máquina de estados:** Una visita no puede marcarse `COMPLETED` sin registrar `exitTime`. Una correspondencia no puede pasar a `DELIVERED` sin registrar `deliveredAt` (`FR15`).
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://127.0.0.1:8087
+    description: Local development
+  - url: https://api.dev.{domain}/api/v1
+    description: Development
+    variables:
+      domain:
+        default: resicomplex.local
+  - url: https://api.{domain}/api/v1
+    description: Production
+    variables:
+      domain:
+        default: resicomplex.com
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Visits
+    description: Registro de ingresos, consultas de visitas activas y registro de salidas (FR13, FR14)
+  - name: Correspondence
+    description: Recepción y entrega de correspondencia y paquetería en portería (FR15)
+  - name: Health
+    description: Estado de salud del servicio
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Verifica el estado del servicio de control de acceso y su conexión con MySQL (`access_control_db`).
+      operationId: checkAccessControlHealth
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  service:
+                    type: string
+                    example: access-control-service
+                  db:
+                    type: string
+                    enum: [connected, disconnected]
+              example:
+                status: ok
+                service: access-control-service
+                db: connected
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '503':
+          description: Servicio no disponible o base de datos desconectada
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/visits:
+    post:
+      summary: Registrar ingreso de visitante (FR13, FR14)
+      description: |
+        Registra la admisión de un visitante en portería con su documento, unidad destino, tipo de visita
+        (`PERSONAL_VISITOR` o `COMMERCIAL_CLIENT`) y datos vehiculares opcionales (`vehiclePlate`, `vehicleType`).
+        La visita se inicializa en estado `ACTIVE` y publica el evento `VisitRegistered`.
+
+        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`
+      operationId: createVisit
+      tags: [Visits]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVisitRequest'
+      responses:
+        '201':
+          description: Ingreso de visitante registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visit'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '422':
+          description: Error de validación de reglas de negocio
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/visits/active:
+    get:
+      summary: Listar visitas activas en el conjunto (FR13, FR14)
+      description: |
+        Retorna la lista de visitantes y vehículos que se encuentran actualmente dentro del conjunto (`status = ACTIVE`).
+        Permite filtrar por unidad destino, tipo de visita o placa vehicular.
+
+        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`, `RESIDENT` (solo su unidad), `MERCHANT` (solo su local)
+      operationId: listActiveVisits
+      tags: [Visits]
+      parameters:
+        - name: destinationUnitId
+          in: query
+          description: Filtrar por UUID de la unidad destino
+          schema:
+            type: string
+            format: uuid
+        - name: visitType
+          in: query
+          description: Filtrar por tipo de visitante
+          schema:
+            $ref: '#/components/schemas/VisitType'
+        - name: vehiclePlate
+          in: query
+          description: Filtrar por placa vehicular (búsqueda parcial o exacta)
+          schema:
+            type: string
+            maxLength: 20
+            example: ABC123
+      responses:
+        '200':
+          description: Lista de visitas activas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Visit'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+
+  /api/v1/visits/{id}/exit:
+    patch:
+      summary: Registrar salida de visitante (FR13, FR14)
+      description: |
+        Registra la marca de tiempo de salida (`exitTime`) de una visita activa y cambia su estado de `ACTIVE` a `COMPLETED`.
+        Retorna `409 Conflict` si la visita ya fue cerrada previamente.
+
+        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`
+      operationId: registerVisitExit
+      tags: [Visits]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID de la visita
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Salida registrada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visit'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+        '409':
+          description: Conflicto de estado (el recurso ya fue cerrado o entregado)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/correspondence:
+    post:
+      summary: Registrar recepción de correspondencia o paquete (FR15)
+      description: |
+        Registra en portería la llegada de un sobre, paquete o domicilio destinado a una unidad.
+        Se inicializa en estado `PENDING_PICKUP` y publica el evento `CorrespondenceReceived`.
+
+        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`
+      operationId: createCorrespondence
+      tags: [Correspondence]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCorrespondenceRequest'
+      responses:
+        '201':
+          description: Correspondencia registrada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Correspondence'
+        '400':
+          $ref: './_shared.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '422':
+          description: Error de validación de reglas de negocio
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Listar correspondencia y paquetería (FR15)
+      description: |
+        Consulta los registros de correspondencia recibida en portería. Permite filtrar por unidad (`unitId`)
+        y estado (`PENDING_PICKUP` o `DELIVERED`).
+
+        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`, `RESIDENT` (solo su unidad), `MERCHANT` (solo su local)
+      operationId: listCorrespondence
+      tags: [Correspondence]
+      parameters:
+        - name: unitId
+          in: query
+          description: Filtrar por UUID de la unidad destino
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filtrar por estado de entrega
+          schema:
+            $ref: '#/components/schemas/CorrespondenceStatus'
+      responses:
+        '200':
+          description: Lista de correspondencia
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Correspondence'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+
+  /api/v1/correspondence/{id}/deliver:
+    patch:
+      summary: Marcar correspondencia como entregada (FR15)
+      description: |
+        Registra la entrega física del paquete o correspondencia al residente/comerciante, actualizando el estado
+        de `PENDING_PICKUP` a `DELIVERED` y registrando `deliveredAt`.
+        Retorna `409 Conflict` si ya fue marcada como entregada.
+
+        **Roles permitidos:** `ADMIN`, `SECURITY_GUARD`
+      operationId: deliverCorrespondence
+      tags: [Correspondence]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID del registro de correspondencia
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Correspondencia marcada como entregada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Correspondence'
+        '401':
+          $ref: './_shared.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './_shared.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './_shared.yaml#/components/responses/NotFound'
+        '409':
+          description: Conflicto de estado (el recurso ya fue cerrado o entregado)
+          content:
+            application/json:
+              schema:
+                $ref: './_shared.yaml#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    VisitType:
+      type: string
+      enum:
+        - PERSONAL_VISITOR
+        - COMMERCIAL_CLIENT
+      description: Clasificación de la visita (visitante personal vs. cliente de local comercial)
+      example: PERSONAL_VISITOR
+
+    VehicleType:
+      type: string
+      enum:
+        - CAR
+        - MOTORCYCLE
+        - NONE
+      description: Tipo de vehículo asociado al ingreso
+      example: CAR
+
+    VisitStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - COMPLETED
+      description: Estado actual de la visita dentro del conjunto
+      example: ACTIVE
+
+    PackageType:
+      type: string
+      enum:
+        - ENVELOPE
+        - BOX
+        - FOOD_DELIVERY
+      description: Tipo de correspondencia o paquete recibido en portería
+      example: BOX
+
+    CorrespondenceStatus:
+      type: string
+      enum:
+        - PENDING_PICKUP
+        - DELIVERED
+      description: Estado de entrega de la correspondencia
+      example: PENDING_PICKUP
+
+    CreateVisitRequest:
+      type: object
+      required:
+        - visitorName
+        - documentNumber
+        - destinationUnitId
+        - visitType
+      properties:
+        visitorName:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: Carlos Andrés Méndez
+        documentNumber:
+          type: string
+          minLength: 4
+          maxLength: 50
+          example: "1075298412"
+        destinationUnitId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440101"
+        visitType:
+          $ref: '#/components/schemas/VisitType'
+        vehiclePlate:
+          type: string
+          nullable: true
+          maxLength: 20
+          example: "KLM456"
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        guardUserId:
+          type: string
+          format: uuid
+          nullable: true
+          description: UUID del guarda que registra el ingreso (opcional si se infiere del JWT)
+          example: "550e8400-e29b-41d4-a716-446655440999"
+
+    Visit:
+      type: object
+      required:
+        - id
+        - visitorName
+        - documentNumber
+        - destinationUnitId
+        - visitType
+        - entryTime
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "7f9c24b1-3d2a-4c8e-9b1f-1234567890ab"
+        visitorName:
+          type: string
+          example: Carlos Andrés Méndez
+        documentNumber:
+          type: string
+          example: "1075298412"
+        destinationUnitId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440101"
+        visitType:
+          $ref: '#/components/schemas/VisitType'
+        vehiclePlate:
+          type: string
+          nullable: true
+          example: "KLM456"
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        entryTime:
+          type: string
+          format: date-time
+          example: "2026-11-20T14:30:00Z"
+        exitTime:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        guardUserId:
+          type: string
+          format: uuid
+          nullable: true
+          example: "550e8400-e29b-41d4-a716-446655440999"
+        status:
+          $ref: '#/components/schemas/VisitStatus'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-11-20T14:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-11-20T14:30:00Z"
+
+    CreateCorrespondenceRequest:
+      type: object
+      required:
+        - unitId
+        - recipientName
+        - packageType
+      properties:
+        unitId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440101"
+        recipientName:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: María Fernanda López
+        packageType:
+          $ref: '#/components/schemas/PackageType'
+        trackingOrCourier:
+          type: string
+          nullable: true
+          maxLength: 100
+          example: "Servientrega #99887766"
+
+    Correspondence:
+      type: object
+      required:
+        - id
+        - unitId
+        - recipientName
+        - packageType
+        - status
+        - receivedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "9a1b2c3d-4e5f-6789-abcd-ef0123456789"
+        unitId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440101"
+        recipientName:
+          type: string
+          example: María Fernanda López
+        packageType:
+          $ref: '#/components/schemas/PackageType'
+        trackingOrCourier:
+          type: string
+          nullable: true
+          example: "Servientrega #99887766"
+        status:
+          $ref: '#/components/schemas/CorrespondenceStatus'
+        receivedAt:
+          type: string
+          format: date-time
+          example: "2026-11-20T15:10:00Z"
+        deliveredAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-11-20T15:10:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-11-20T15:10:00Z"

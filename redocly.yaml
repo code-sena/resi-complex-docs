@@ -2,6 +2,8 @@ extends:
   - recommended
 
 apis:
+  access-control-service:
+    root: 07-api/contracts/openapi/access-control-service.yaml
   auth-service:
     root: 07-api/contracts/openapi/auth-service.yaml
   billing-service:
