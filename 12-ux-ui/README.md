@@ -19,7 +19,8 @@ Changing the code in production with real users can cost days and reputation.
 |------|--------|-------|
 | `navigation-map.md` | Draft, filled | Routes, screen map, access matrix, and 4 end-to-end flows derived from the 22 User Stories in `04-requirements/user-stories.md` |
 | `design-system.md` | Draft, filled | Tokens, components, and domain-specific status/priority badges. Colors are a **proposed palette**, not an approved brand |
-| `wireframes.md` | **Not created yet** | Low-fidelity screens for the flows in `navigation-map.md`. This is intentionally left for the team to draw (in Figma, Balsamiq, or ASCII) — it is a visual design task, not something to generate from text alone |
+| `wireframes.md` | **Filled (Google Stitch)** | High-fidelity mockups & UI Kit exported from [Google Stitch Project `15727882496787728254`](https://stitch.google.com/projects/15727882496787728254) |
+| `stitch/` | **Filled** | Exported HTML screens (`stitch/screens/`), PNG screenshots (`stitch/screenshots/`), and generation prompts (`stitch/stitch-mockup-prompts.md`) |
 
 ---
 
@@ -39,10 +40,14 @@ component mapped to every entity's lifecycle from `02-domain/entities-and-rules.
 (`MaintenanceRequest`, `AdministrationFee`, `Correspondence`, `ExpenseProposal`), plus
 a Priority badge and a Unit Type badge.
 
-### `wireframes.md` (pending)
-Low-fidelity layouts of the main screens listed in `navigation-map.md`. **Fill in:**
-one wireframe (ASCII, Figma link, or Balsamiq export) per screen in the screen map,
-focused on structure and content placement — not colors or final styling.
+### `wireframes.md` & `stitch/`
+High-fidelity mockups and UI Kit designed in **Google Stitch**
+([`https://stitch.google.com/projects/15727882496787728254`](https://stitch.google.com/projects/15727882496787728254)):
+- **01 — UI Kit (`01-ui-kit-componentes`)**: `Badge`, `Toast`, `Modal`, `Tooltip`, `Skeleton loader`.
+- **02 — Dashboard del Administrador (`/dashboard`)**
+- **03 — Lista de Solicitudes (`/requests`)** con `Skeleton loader`.
+- **04 — Aprobación de Gasto Extraordinario (`/expenses/EXP-12`)** con `Modal`.
+- **05 — Portería: Registro de Visitas (`/front-desk/visits`)** con `Tooltip` y `Toast`.
 
 ---
 
