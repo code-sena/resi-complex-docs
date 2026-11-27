@@ -22,7 +22,7 @@
 
 | Usuario de GitHub | Servicio(s) a cargo | Tablas a cargo | Motor | Rama | Solicitud de integración |
 |---|---|---|---|---|---|
-| `Trujillo7915` | `02-auth-service` | `users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `refresh_tokens`, `outbox` | MySQL 8 | `g1/02-auth-service-Trujillo7915` | #PR |
+| `Trujillo7915` | `02-auth-service` | `users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `refresh_tokens`, `outbox` | MySQL 8 | `g1/02-auth-service-Trujillo7915` | #26 |
 
 ## 3. Archivos compartidos
 
@@ -40,7 +40,7 @@
 
 ### Aprendiz `@Trujillo7915`
 
-**Servicio(s):** `02-auth-service` · **Rama:** `g1/02-auth-service-Trujillo7915` · **Solicitud de integración:** #PR
+**Servicio(s):** `02-auth-service` · **Rama:** `g1/02-auth-service-Trujillo7915` · **Solicitud de integración:** #26
 
 #### 4.1 Archivos de mi entrega
 
