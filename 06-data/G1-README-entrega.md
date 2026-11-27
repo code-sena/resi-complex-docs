@@ -22,7 +22,7 @@
 
 | Usuario de GitHub | Servicio(s) a cargo | Tablas a cargo | Motor | Rama | Solicitud de integración |
 |---|---|---|---|---|---|
-| `FelixJRbyte` | `06-billing-service`, `07-finance-service` | `administration_fees`, `payments`, `tariff_configs`, `expense_proposals`, `approvals`, `outbox`, `processed_events` | MySQL 8 | `g1/06-billing-service-FelixJRbyte` | #PR |
+| `FelixJRbyte` | `06-billing-service`, `07-finance-service` | `administration_fees`, `payments`, `tariff_configs`, `expense_proposals`, `approvals`, `outbox`, `processed_events` | MySQL 8 | `g1/06-billing-service-FelixJRbyte` | #28 |
 
 ## 3. Archivos compartidos
 
