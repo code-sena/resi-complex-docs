@@ -22,6 +22,7 @@
 
 | Usuario de GitHub | Servicio(s) a cargo | Tablas a cargo | Motor | Rama | Solicitud de integración |
 |---|---|---|---|---|---|
+| `AlexandraVargass` | `03-units-service`, `04-people-service` | `units`, `commercial_establishments`, `persons`, `unit_occupancies`, `person_phones`, `outbox` | MySQL 8 | `g1/03-units-service-AlexandraVargass` | #PR |
 
 ## 3. Archivos compartidos
 
